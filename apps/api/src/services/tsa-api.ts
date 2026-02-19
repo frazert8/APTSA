@@ -97,8 +97,17 @@ export async function fetchTsaWaitMinutes(terminalId: string): Promise<number | 
     const url = new URL('https://www.tsawaittimes.com/api/airport');
     url.searchParams.set('airportCode', m.airportCode);
 
+    const headers: Record<string, string> = {
+      'User-Agent': 'SwiftClear/1.0 (+https://swiftclear.app)',
+    };
+    const tsaKey = process.env['TSA_API_KEY'];
+    if (tsaKey) {
+      headers['Authorization'] = `Bearer ${tsaKey}`;
+      headers['x-api-key']     = tsaKey;
+    }
+
     const resp = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'SwiftClear/1.0 (+https://swiftclear.app)' },
+      headers,
       signal: AbortSignal.timeout(4000),
     });
 
