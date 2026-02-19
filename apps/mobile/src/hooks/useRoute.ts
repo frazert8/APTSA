@@ -40,7 +40,7 @@ export function useRoute(): void {
     async (lat: number, lng: number, terminalId: string) => {
       setFetchingRoute(true);
       try {
-        const resp = await fetch(`${API_BASE}/api/route`, {
+        const resp = await fetch(`${API_BASE}/api/travel-time`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ originLat: lat, originLng: lng, terminalId }),
