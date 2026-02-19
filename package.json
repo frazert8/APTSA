@@ -1,0 +1,23 @@
+{
+  "name": "swiftclear",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/api"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w apps/mobile",
+    "api:dev": "npm run dev -w apps/api",
+    "api:deploy": "npm run deploy -w apps/api",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  }
+}

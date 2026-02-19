@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "SwiftClear",
+    "slug": "swiftclear",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#080C14",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080C14"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.swiftclear.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SwiftClear uses your location to calculate drive time to the terminal and verify you are physically at the checkpoint.",
+        "NSLocationAlwaysUsageDescription": "SwiftClear uses your location in the background to send leave-by reminders."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#080C14"
+      },
+      "package": "com.swiftclear.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "SwiftClear uses your location to calculate drive time and verify terminal presence."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
