@@ -22,13 +22,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cached);
   }
 
+  // Fetch live_checks and TSA data in parallel.
+  // Reputation scores are fetched in a second query keyed by user_id
+  // (live_checks → auth.users ← user_trust_profiles, no direct FK).
   const [checksResult, tsaMinutes] = await Promise.all([
     supabase
       .from('live_checks')
-      .select(
-        `id, terminal_id, user_id, wait_minutes, is_geofenced, trust_weight,
-         submitted_at, user_trust_profiles!inner(reputation_score)`,
-      )
+      .select('id, terminal_id, user_id, wait_minutes, is_geofenced, trust_weight, submitted_at')
       .eq('terminal_id', terminalId)
       .gt('expires_at', new Date().toISOString())
       .order('submitted_at', { ascending: false })
@@ -38,18 +38,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (checksResult.error) return res.status(500).json({ error: 'Database error' });
 
-  const enriched: EnrichedLiveCheck[] = (checksResult.data ?? []).map((row) => ({
-    id:             row.id,
-    terminal_id:    row.terminal_id,
-    user_id:        row.user_id,
-    wait_minutes:   row.wait_minutes,
-    user_location:  null,
-    is_geofenced:   row.is_geofenced,
-    trust_weight:   row.trust_weight,
-    submitted_at:   row.submitted_at,
-    expires_at:     '',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reputation_score: (row as any).user_trust_profiles?.reputation_score ?? 1.0,
+  const checks = checksResult.data ?? [];
+
+  // Fetch reputation scores for all unique submitters (empty if no live checks)
+  const userIds = [...new Set(checks.map((c) => c.user_id))];
+  const reputationMap = new Map<string, number>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('user_trust_profiles')
+      .select('user_id, reputation_score')
+      .in('user_id', userIds);
+    for (const p of profiles ?? []) {
+      reputationMap.set(p.user_id, p.reputation_score);
+    }
+  }
+
+  const enriched: EnrichedLiveCheck[] = checks.map((row) => ({
+    id:               row.id,
+    terminal_id:      row.terminal_id,
+    user_id:          row.user_id,
+    wait_minutes:     row.wait_minutes,
+    user_location:    null,
+    is_geofenced:     row.is_geofenced,
+    trust_weight:     row.trust_weight,
+    submitted_at:     row.submitted_at,
+    expires_at:       '',
+    reputation_score: reputationMap.get(row.user_id) ?? 1.0,
   }));
 
   const result = computeWeightedWaitTime(enriched, tsaMinutes);
