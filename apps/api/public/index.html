@@ -688,8 +688,8 @@
         const res = await fetch(`/api/wait-times/${terminalId}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
-        waitTimes[terminalId] = typeof data.waitMinutes === 'number'
-          ? data.waitMinutes
+        waitTimes[terminalId] = typeof data.estimatedWaitMinutes === 'number'
+          ? data.estimatedWaitMinutes
           : null;
       } catch {
         waitTimes[terminalId] = null;
