@@ -208,13 +208,35 @@ function parseState(s: unknown[], now: number): Aircraft | null {
   // Skip state vectors with no position fix or implausible coordinates
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
 
+  // ── Commercial-only filter ────────────────────────────────────
+  // Commercial flights always have a structured ICAO callsign:
+  //   3-letter airline designator (e.g. AAL, UAL, SWA) + flight number digits.
+  // Private jets → registration numbers (N12345, C-FABC, G-ABCD)
+  // General aviation → short mixed strings or no callsign
+  // Military → non-standard codes (RCH, REACH, etc. but no scheduled service)
+  //
+  // Rules:
+  //  1. Must have a callsign (blank = squitter-only transponder, GA or drone)
+  //  2. Must match the ICAO commercial pattern: 3 uppercase letters + digit
+  //     OR be resolvable to a known airline via the 2-letter IATA alias map
+  //  3. Drop callsigns that are pure registration numbers (contain a hyphen
+  //     or start with a country prefix followed by digits: N/C/G/D/VH/etc.)
+  if (!callsign) return null;
+
+  const airline = resolveAirline(callsign);
+  const isIcaoCommercial  = /^[A-Z]{3}\d/.test(callsign);   // standard ICAO: AAL699
+  const isIataAlias       = airline !== '';                   // resolved 2-letter alias: WN→SWA
+  const isRegistration    = /^[A-Z]-|^[A-Z]{1,2}\d|^N\d|^VH|^C-|^G-|^D-|^OE-|^PH-/.test(callsign);
+
+  if ((!isIcaoCommercial && !isIataAlias) || isRegistration) return null;
+
   const altFt    = Math.round(altM * 3.28084);
   const speedKts = Math.round(velMs * 1.94384);
 
-  // Filter strategy:
+  // ── Movement filter ───────────────────────────────────────────
   //  - Keep all airborne aircraft (onGround === false)
   //  - Keep moving ground traffic (taxi/takeoff roll: speedKts >= 20)
-  //  - Drop parked / fully stationary ground traffic (clutters the map)
+  //  - Drop parked / fully stationary ground traffic
   const isMovingOnGround = onGround && speedKts >= 20;
   const isAirborne       = !onGround;
   if (!isAirborne && !isMovingOnGround) return null;
@@ -229,7 +251,7 @@ function parseState(s: unknown[], now: number): Aircraft | null {
     heading:  Math.round(track),
     vertRate: Math.round(vertRateMs * 10) / 10,
     onGround,
-    airline:  resolveAirline(callsign),
+    airline,
     squawk,
   };
 }
