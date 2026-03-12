@@ -2012,8 +2012,24 @@ function onAirportChange() {
   const iata = document.getElementById('airportSelect').value;
   loadTerminals();
   loadBoard(iata);
-  // Keep simulation running across airport changes — just re-center the map
-  if (liveTrafficOn) { renderFleet(); }
+  // When live traffic is on, clear stale aircraft from the previous airport
+  // and immediately fetch fresh data for the new airport.
+  if (liveTrafficOn) {
+    // Reset live state so we don't keep showing old airport's aircraft
+    liveApiMode  = false;
+    lastLiveIata = '';
+    // Remove live aircraft (those with icao24) from simFleet; remove their map markers
+    var liveIds = {};
+    simFleet.forEach(function(ac) { if (ac.icao24) liveIds[ac.id] = true; });
+    simFleet = simFleet.filter(function(ac) { return !ac.icao24; });
+    Object.keys(liveIds).forEach(function(id) {
+      if (trafficMarkers[id]) { trafficMarkers[id].setMap(null); delete trafficMarkers[id]; }
+    });
+    // Rebuild simulation for the new airport and immediately fetch live data
+    simFleet = buildFleet();
+    renderFleet();
+    fetchLiveTraffic(iata);
+  }
   // Recalculate route if we already have the user's location.
   // On airport change, reset the route target to the newly selected airport.
   if (userLocation && mapsReady) {
@@ -2150,84 +2166,120 @@ const AP = {
 };
 
 // ── Route database — top routes per hub airport ───────────────
-// { from, to, airline, freq }  freq: relative frequency (1=base)
+// { from, to, airline-ICAO, weight }   NOTE: all airline codes are
+// ICAO telephony designators (3-letter), NOT IATA 2-letter codes.
+// WN (Southwest IATA) → SWA (Southwest ICAO), etc.
 const ROUTES = [
-  // ATL
+  // ATL — Delta hub, Southwest leisure, Spirit/Frontier budget
   {f:'ATL',t:'JFK',a:'DAL',w:3},{f:'ATL',t:'LAX',a:'DAL',w:3},{f:'ATL',t:'ORD',a:'AAL',w:2},
   {f:'ATL',t:'DFW',a:'AAL',w:2},{f:'ATL',t:'BOS',a:'DAL',w:2},{f:'ATL',t:'MIA',a:'DAL',w:2},
-  {f:'ATL',t:'DEN',a:'UAL',w:2},{f:'ATL',t:'MCO',a:'WN', w:3},{f:'ATL',t:'LHR',a:'DAL',w:1},
-  {f:'ATL',t:'CDG',a:'DAL',w:1},{f:'ATL',t:'PHX',a:'WN', w:2},{f:'ATL',t:'SEA',a:'DAL',w:1},
-  {f:'ATL',t:'LAS',a:'WN', w:2},{f:'ATL',t:'DCA',a:'DAL',w:2},{f:'ATL',t:'IAH',a:'UAL',w:1},
-  // ORD
+  {f:'ATL',t:'DEN',a:'UAL',w:2},{f:'ATL',t:'MCO',a:'SWA',w:3},{f:'ATL',t:'LHR',a:'DAL',w:1},
+  {f:'ATL',t:'CDG',a:'DAL',w:1},{f:'ATL',t:'PHX',a:'SWA',w:2},{f:'ATL',t:'SEA',a:'DAL',w:1},
+  {f:'ATL',t:'LAS',a:'SWA',w:2},{f:'ATL',t:'DCA',a:'DAL',w:2},{f:'ATL',t:'IAH',a:'UAL',w:1},
+  {f:'ATL',t:'MCO',a:'NKS',w:2},{f:'ATL',t:'FLL',a:'NKS',w:2},{f:'ATL',t:'DFW',a:'NKS',w:1},
+  {f:'ATL',t:'LAS',a:'FFT',w:1},{f:'ATL',t:'DEN',a:'FFT',w:1},{f:'ATL',t:'MCO',a:'AAY',w:1},
+  // ORD — United/American hub, Southwest secondary
   {f:'ORD',t:'JFK',a:'AAL',w:3},{f:'ORD',t:'LAX',a:'UAL',w:3},{f:'ORD',t:'ATL',a:'UAL',w:2},
   {f:'ORD',t:'SFO',a:'UAL',w:2},{f:'ORD',t:'DFW',a:'AAL',w:2},{f:'ORD',t:'MIA',a:'AAL',w:1},
   {f:'ORD',t:'DEN',a:'UAL',w:2},{f:'ORD',t:'LHR',a:'UAL',w:2},{f:'ORD',t:'CDG',a:'AFR',w:1},
   {f:'ORD',t:'BOS',a:'AAL',w:2},{f:'ORD',t:'SEA',a:'UAL',w:2},{f:'ORD',t:'PHX',a:'AAL',w:2},
   {f:'ORD',t:'LAS',a:'UAL',w:2},{f:'ORD',t:'DCA',a:'AAL',w:2},{f:'ORD',t:'MSP',a:'DAL',w:1},
-  // DFW
+  {f:'ORD',t:'MDW',a:'SWA',w:3},{f:'ORD',t:'MCO',a:'SWA',w:2},{f:'ORD',t:'BOS',a:'SWA',w:1},
+  // DFW — American hub
   {f:'DFW',t:'LAX',a:'AAL',w:3},{f:'DFW',t:'JFK',a:'AAL',w:3},{f:'DFW',t:'ORD',a:'AAL',w:2},
   {f:'DFW',t:'MIA',a:'AAL',w:2},{f:'DFW',t:'ATL',a:'DAL',w:2},{f:'DFW',t:'SFO',a:'AAL',w:2},
   {f:'DFW',t:'BOS',a:'AAL',w:2},{f:'DFW',t:'DEN',a:'UAL',w:1},{f:'DFW',t:'LHR',a:'AAL',w:1},
   {f:'DFW',t:'CDG',a:'AAL',w:1},{f:'DFW',t:'MEX',a:'AAL',w:1},{f:'DFW',t:'CUN',a:'AAL',w:1},
-  {f:'DFW',t:'SEA',a:'AAL',w:1},{f:'DFW',t:'PHX',a:'AAL',w:2},{f:'DFW',t:'MCO',a:'WN', w:1},
-  // LAX
+  {f:'DFW',t:'SEA',a:'AAL',w:1},{f:'DFW',t:'PHX',a:'AAL',w:2},{f:'DFW',t:'MCO',a:'SWA',w:1},
+  {f:'DFW',t:'MCO',a:'NKS',w:2},{f:'DFW',t:'MIA',a:'NKS',w:1},{f:'DFW',t:'LAS',a:'SWA',w:2},
+  // LAX — United/AA/Alaska/Southwest hub, heavy international
   {f:'LAX',t:'JFK',a:'AAL',w:3},{f:'LAX',t:'ORD',a:'UAL',w:2},{f:'LAX',t:'SFO',a:'UAL',w:3},
   {f:'LAX',t:'DFW',a:'AAL',w:2},{f:'LAX',t:'SEA',a:'ASA',w:3},{f:'LAX',t:'LHR',a:'BAW',w:2},
   {f:'LAX',t:'NRT',a:'UAL',w:1},{f:'LAX',t:'MEX',a:'AAL',w:1},{f:'LAX',t:'ATL',a:'DAL',w:2},
-  {f:'LAX',t:'DEN',a:'UAL',w:2},{f:'LAX',t:'LAS',a:'WN', w:3},{f:'LAX',t:'PHX',a:'WN', w:2},
-  {f:'LAX',t:'SAN',a:'WN', w:3},{f:'LAX',t:'PDX',a:'ASA',w:2},{f:'LAX',t:'CDG',a:'AFR',w:1},
-  // JFK
+  {f:'LAX',t:'DEN',a:'UAL',w:2},{f:'LAX',t:'LAS',a:'SWA',w:3},{f:'LAX',t:'PHX',a:'SWA',w:2},
+  {f:'LAX',t:'SAN',a:'SWA',w:3},{f:'LAX',t:'PDX',a:'ASA',w:2},{f:'LAX',t:'CDG',a:'AFR',w:1},
+  {f:'LAX',t:'LAS',a:'AAY',w:2},{f:'LAX',t:'PHX',a:'AAY',w:1},{f:'LAX',t:'DEN',a:'FFT',w:1},
+  {f:'LAX',t:'MCO',a:'NKS',w:1},{f:'LAX',t:'JFK',a:'JBU',w:2},{f:'LAX',t:'SFO',a:'SWA',w:2},
+  // JFK — JetBlue/AA hub, heavy transatlantic
   {f:'JFK',t:'LAX',a:'JBU',w:3},{f:'JFK',t:'SFO',a:'JBU',w:2},{f:'JFK',t:'MIA',a:'AAL',w:3},
   {f:'JFK',t:'ORD',a:'AAL',w:2},{f:'JFK',t:'ATL',a:'DAL',w:2},{f:'JFK',t:'LHR',a:'BAW',w:3},
   {f:'JFK',t:'CDG',a:'AFR',w:2},{f:'JFK',t:'NRT',a:'JAL',w:1},{f:'JFK',t:'BOS',a:'JBU',w:2},
   {f:'JFK',t:'DFW',a:'AAL',w:2},{f:'JFK',t:'MCO',a:'JBU',w:3},{f:'JFK',t:'GRU',a:'DAL',w:1},
   {f:'JFK',t:'CUN',a:'JBU',w:2},{f:'JFK',t:'DEN',a:'UAL',w:1},{f:'JFK',t:'SEA',a:'JBU',w:1},
-  // MIA
+  {f:'JFK',t:'FLL',a:'NKS',w:2},{f:'JFK',t:'MCO',a:'NKS',w:2},{f:'JFK',t:'ATL',a:'NKS',w:1},
+  {f:'JFK',t:'LHR',a:'VIR',w:1},{f:'JFK',t:'CDG',a:'DLH',w:1},{f:'JFK',t:'FRA',a:'DLH',w:1},
+  // MIA — AA hub, heavy Latin America/Caribbean
   {f:'MIA',t:'JFK',a:'AAL',w:3},{f:'MIA',t:'LAX',a:'AAL',w:2},{f:'MIA',t:'ORD',a:'AAL',w:2},
   {f:'MIA',t:'ATL',a:'DAL',w:2},{f:'MIA',t:'LHR',a:'BAW',w:1},{f:'MIA',t:'CDG',a:'AAL',w:1},
   {f:'MIA',t:'GRU',a:'AAL',w:1},{f:'MIA',t:'MEX',a:'AAL',w:1},{f:'MIA',t:'CUN',a:'AAL',w:2},
-  {f:'MIA',t:'MCO',a:'WN', w:2},{f:'MIA',t:'DFW',a:'AAL',w:2},{f:'MIA',t:'BOS',a:'JBU',w:1},
+  {f:'MIA',t:'MCO',a:'SWA',w:2},{f:'MIA',t:'DFW',a:'AAL',w:2},{f:'MIA',t:'BOS',a:'JBU',w:1},
   {f:'MIA',t:'NAS',a:'AAL',w:2},{f:'MIA',t:'MBJ',a:'AAL',w:1},{f:'MIA',t:'IAH',a:'UAL',w:1},
-  // SFO
+  {f:'MIA',t:'MCO',a:'NKS',w:2},{f:'MIA',t:'ATL',a:'NKS',w:1},{f:'MIA',t:'ORD',a:'NKS',w:1},
+  {f:'MIA',t:'MCO',a:'AAY',w:1},{f:'MIA',t:'ATL',a:'AAY',w:1},
+  // FLL — Fort Lauderdale, Spirit fortress hub
+  {f:'FLL',t:'JFK',a:'NKS',w:3},{f:'FLL',t:'ORD',a:'NKS',w:3},{f:'FLL',t:'ATL',a:'NKS',w:2},
+  {f:'FLL',t:'DFW',a:'NKS',w:2},{f:'FLL',t:'LAX',a:'NKS',w:2},{f:'FLL',t:'BOS',a:'NKS',w:2},
+  {f:'FLL',t:'MCO',a:'SWA',w:2},{f:'FLL',t:'ATL',a:'SWA',w:2},{f:'FLL',t:'DEN',a:'SWA',w:1},
+  {f:'FLL',t:'JFK',a:'JBU',w:2},{f:'FLL',t:'BOS',a:'JBU',w:2},{f:'FLL',t:'CUN',a:'AAL',w:1},
+  // SFO — United/Alaska/Southwest
   {f:'SFO',t:'LAX',a:'UAL',w:3},{f:'SFO',t:'JFK',a:'UAL',w:2},{f:'SFO',t:'ORD',a:'UAL',w:2},
   {f:'SFO',t:'SEA',a:'ASA',w:3},{f:'SFO',t:'DEN',a:'UAL',w:2},{f:'SFO',t:'LHR',a:'UAL',w:2},
   {f:'SFO',t:'NRT',a:'UAL',w:1},{f:'SFO',t:'DFW',a:'AAL',w:1},{f:'SFO',t:'ATL',a:'DAL',w:1},
-  {f:'SFO',t:'PDX',a:'ASA',w:2},{f:'SFO',t:'SAN',a:'WN', w:2},{f:'SFO',t:'PHX',a:'WN', w:2},
-  {f:'SFO',t:'LAS',a:'UAL',w:2},{f:'SFO',t:'SJC',a:'WN', w:2},{f:'SFO',t:'CDG',a:'AFR',w:1},
-  // DEN
+  {f:'SFO',t:'PDX',a:'ASA',w:2},{f:'SFO',t:'SAN',a:'SWA',w:2},{f:'SFO',t:'PHX',a:'SWA',w:2},
+  {f:'SFO',t:'LAS',a:'UAL',w:2},{f:'SFO',t:'SJC',a:'SWA',w:2},{f:'SFO',t:'CDG',a:'AFR',w:1},
+  {f:'SFO',t:'LAS',a:'AAY',w:1},{f:'SFO',t:'SAN',a:'ASA',w:2},{f:'SFO',t:'LAX',a:'SWA',w:3},
+  // DEN — United hub, Frontier home, Southwest popular
   {f:'DEN',t:'LAX',a:'UAL',w:2},{f:'DEN',t:'SFO',a:'UAL',w:2},{f:'DEN',t:'ORD',a:'UAL',w:2},
-  {f:'DEN',t:'DFW',a:'UAL',w:1},{f:'DEN',t:'SEA',a:'UAL',w:2},{f:'DEN',t:'ATL',a:'FFT',w:1},
+  {f:'DEN',t:'DFW',a:'UAL',w:1},{f:'DEN',t:'SEA',a:'UAL',w:2},{f:'DEN',t:'ATL',a:'FFT',w:2},
   {f:'DEN',t:'PHX',a:'UAL',w:2},{f:'DEN',t:'LAS',a:'FFT',w:2},{f:'DEN',t:'JFK',a:'UAL',w:1},
   {f:'DEN',t:'BOS',a:'UAL',w:1},{f:'DEN',t:'MSP',a:'DAL',w:1},{f:'DEN',t:'MIA',a:'UAL',w:1},
-  // SEA
+  {f:'DEN',t:'MCO',a:'SWA',w:2},{f:'DEN',t:'LAX',a:'FFT',w:2},{f:'DEN',t:'PHX',a:'FFT',w:2},
+  {f:'DEN',t:'SFO',a:'FFT',w:1},{f:'DEN',t:'LAS',a:'SWA',w:2},{f:'DEN',t:'ATL',a:'SWA',w:1},
+  {f:'DEN',t:'MCO',a:'FFT',w:1},{f:'DEN',t:'BOS',a:'NKS',w:1},{f:'DEN',t:'ORD',a:'NKS',w:1},
+  // SEA — Alaska hub
   {f:'SEA',t:'LAX',a:'ASA',w:3},{f:'SEA',t:'SFO',a:'ASA',w:3},{f:'SEA',t:'ORD',a:'UAL',w:2},
   {f:'SEA',t:'DEN',a:'UAL',w:2},{f:'SEA',t:'JFK',a:'JBU',w:1},{f:'SEA',t:'LAS',a:'ASA',w:2},
   {f:'SEA',t:'PHX',a:'ASA',w:2},{f:'SEA',t:'ATL',a:'DAL',w:1},{f:'SEA',t:'DFW',a:'AAL',w:1},
   {f:'SEA',t:'PDX',a:'ASA',w:3},{f:'SEA',t:'YVR',a:'ACA',w:2},{f:'SEA',t:'NRT',a:'JAL',w:1},
-  // LAS
-  {f:'LAS',t:'LAX',a:'WN', w:3},{f:'LAS',t:'SFO',a:'WN', w:2},{f:'LAS',t:'SEA',a:'WN', w:2},
-  {f:'LAS',t:'PHX',a:'WN', w:2},{f:'LAS',t:'DEN',a:'UAL',w:2},{f:'LAS',t:'ORD',a:'UAL',w:2},
-  {f:'LAS',t:'ATL',a:'WN', w:2},{f:'LAS',t:'DFW',a:'AAL',w:1},{f:'LAS',t:'JFK',a:'JBU',w:1},
-  // PHX
-  {f:'PHX',t:'LAX',a:'WN', w:3},{f:'PHX',t:'SFO',a:'WN', w:2},{f:'PHX',t:'SEA',a:'ASA',w:2},
-  {f:'PHX',t:'ORD',a:'AAL',w:2},{f:'PHX',t:'DFW',a:'AAL',w:2},{f:'PHX',t:'ATL',a:'WN', w:2},
-  {f:'PHX',t:'DEN',a:'UAL',w:2},{f:'PHX',t:'LAS',a:'WN', w:2},{f:'PHX',t:'JFK',a:'AAL',w:1},
-  // BOS
+  {f:'SEA',t:'LAS',a:'SWA',w:2},{f:'SEA',t:'PHX',a:'SWA',w:1},{f:'SEA',t:'MCO',a:'SWA',w:1},
+  // LAS — Southwest fortress hub, Allegiant strong
+  {f:'LAS',t:'LAX',a:'SWA',w:3},{f:'LAS',t:'SFO',a:'SWA',w:2},{f:'LAS',t:'SEA',a:'SWA',w:2},
+  {f:'LAS',t:'PHX',a:'SWA',w:2},{f:'LAS',t:'DEN',a:'UAL',w:2},{f:'LAS',t:'ORD',a:'UAL',w:2},
+  {f:'LAS',t:'ATL',a:'SWA',w:2},{f:'LAS',t:'DFW',a:'AAL',w:1},{f:'LAS',t:'JFK',a:'JBU',w:1},
+  {f:'LAS',t:'LAX',a:'AAY',w:2},{f:'LAS',t:'SFO',a:'AAY',w:1},{f:'LAS',t:'PHX',a:'AAY',w:1},
+  {f:'LAS',t:'DEN',a:'FFT',w:2},{f:'LAS',t:'ATL',a:'FFT',w:1},{f:'LAS',t:'ORD',a:'NKS',w:1},
+  {f:'LAS',t:'MCO',a:'SWA',w:2},{f:'LAS',t:'BOS',a:'JBU',w:1},
+  // PHX — American hub, Southwest popular, Allegiant base
+  {f:'PHX',t:'LAX',a:'SWA',w:3},{f:'PHX',t:'SFO',a:'SWA',w:2},{f:'PHX',t:'SEA',a:'ASA',w:2},
+  {f:'PHX',t:'ORD',a:'AAL',w:2},{f:'PHX',t:'DFW',a:'AAL',w:2},{f:'PHX',t:'ATL',a:'SWA',w:2},
+  {f:'PHX',t:'DEN',a:'UAL',w:2},{f:'PHX',t:'LAS',a:'SWA',w:2},{f:'PHX',t:'JFK',a:'AAL',w:1},
+  {f:'PHX',t:'MCO',a:'AAY',w:1},{f:'PHX',t:'SFO',a:'AAY',w:1},{f:'PHX',t:'LAX',a:'AAY',w:1},
+  {f:'PHX',t:'DEN',a:'FFT',w:2},{f:'PHX',t:'ATL',a:'NKS',w:1},{f:'PHX',t:'MCO',a:'SWA',w:2},
+  // BOS — JetBlue focus city, busy transatlantic
   {f:'BOS',t:'JFK',a:'JBU',w:2},{f:'BOS',t:'DCA',a:'JBU',w:2},{f:'BOS',t:'MIA',a:'JBU',w:2},
   {f:'BOS',t:'MCO',a:'JBU',w:2},{f:'BOS',t:'ORD',a:'AAL',w:2},{f:'BOS',t:'ATL',a:'DAL',w:2},
   {f:'BOS',t:'LHR',a:'BAW',w:2},{f:'BOS',t:'DFW',a:'AAL',w:1},{f:'BOS',t:'LAX',a:'JBU',w:1},
-  // CLT
+  {f:'BOS',t:'FLL',a:'NKS',w:2},{f:'BOS',t:'MCO',a:'NKS',w:2},{f:'BOS',t:'ATL',a:'NKS',w:1},
+  {f:'BOS',t:'MCO',a:'SWA',w:2},{f:'BOS',t:'DEN',a:'SWA',w:1},{f:'BOS',t:'LAS',a:'JBU',w:1},
+  // CLT — American hub
   {f:'CLT',t:'JFK',a:'AAL',w:2},{f:'CLT',t:'MIA',a:'AAL',w:2},{f:'CLT',t:'ORD',a:'AAL',w:2},
   {f:'CLT',t:'ATL',a:'DAL',w:1},{f:'CLT',t:'DFW',a:'AAL',w:2},{f:'CLT',t:'LAX',a:'AAL',w:1},
   {f:'CLT',t:'LHR',a:'BAW',w:1},{f:'CLT',t:'MCO',a:'AAL',w:2},{f:'CLT',t:'BOS',a:'AAL',w:1},
-  // MSP
+  {f:'CLT',t:'MCO',a:'SWA',w:1},{f:'CLT',t:'LAS',a:'SWA',w:1},
+  // MSP — Delta hub, Sun Country home, Southwest secondary
   {f:'MSP',t:'ORD',a:'DAL',w:2},{f:'MSP',t:'ATL',a:'DAL',w:2},{f:'MSP',t:'DEN',a:'DAL',w:1},
   {f:'MSP',t:'JFK',a:'DAL',w:1},{f:'MSP',t:'LAX',a:'DAL',w:1},{f:'MSP',t:'DFW',a:'AAL',w:1},
-  {f:'MSP',t:'MCO',a:'DAL',w:2},{f:'MSP',t:'MIA',a:'DAL',w:1},{f:'MSP',t:'LAS',a:'WN', w:1},
-  // MCO
-  {f:'MCO',t:'JFK',a:'JBU',w:3},{f:'MCO',t:'BOS',a:'JBU',w:2},{f:'MCO',t:'ATL',a:'WN', w:3},
+  {f:'MSP',t:'MCO',a:'DAL',w:2},{f:'MSP',t:'MIA',a:'DAL',w:1},{f:'MSP',t:'LAS',a:'SWA',w:1},
+  {f:'MSP',t:'FLL',a:'SCX',w:2},{f:'MSP',t:'MCO',a:'SCX',w:2},{f:'MSP',t:'PHX',a:'SCX',w:2},
+  {f:'MSP',t:'LAS',a:'SCX',w:2},{f:'MSP',t:'LAX',a:'SCX',w:1},{f:'MSP',t:'DEN',a:'SWA',w:1},
+  {f:'MSP',t:'MCO',a:'SWA',w:2},{f:'MSP',t:'PHX',a:'SWA',w:1},
+  // MCO — JetBlue/Southwest/Spirit leisure hub
+  {f:'MCO',t:'JFK',a:'JBU',w:3},{f:'MCO',t:'BOS',a:'JBU',w:2},{f:'MCO',t:'ATL',a:'SWA',w:3},
   {f:'MCO',t:'MIA',a:'AAL',w:2},{f:'MCO',t:'ORD',a:'AAL',w:2},{f:'MCO',t:'DFW',a:'AAL',w:2},
-  {f:'MCO',t:'LAS',a:'WN', w:1},{f:'MCO',t:'MSP',a:'DAL',w:1},{f:'MCO',t:'DCA',a:'JBU',w:2},
+  {f:'MCO',t:'LAS',a:'SWA',w:2},{f:'MCO',t:'MSP',a:'DAL',w:1},{f:'MCO',t:'DCA',a:'JBU',w:2},
+  {f:'MCO',t:'JFK',a:'NKS',w:2},{f:'MCO',t:'ORD',a:'NKS',w:2},{f:'MCO',t:'DFW',a:'NKS',w:1},
+  {f:'MCO',t:'BOS',a:'NKS',w:2},{f:'MCO',t:'DEN',a:'NKS',w:1},{f:'MCO',t:'LAS',a:'AAY',w:1},
+  {f:'MCO',t:'ATL',a:'AAY',w:1},{f:'MCO',t:'DFW',a:'FFT',w:1},{f:'MCO',t:'DEN',a:'FFT',w:1},
 ];
 
 // ── Math utilities ────────────────────────────────────────────
@@ -2294,13 +2346,56 @@ function trafficDensity() {
   return 0.30;
 }
 
-// ── Fleet ─────────────────────────────────────────────────────
-var simFleet        = [];
-var simTimer        = null;
+// ── Fleet & live-data state ───────────────────────────────────
+var simFleet        = [];        // unified aircraft array (live + sim fallback)
+var simTimer        = null;      // 2 s interpolation tick
+var liveTimer       = null;      // 20 s API poll
 var trafficMarkers  = {};
 var liveTrafficOn   = false;
+var liveApiMode     = false;     // true = real OpenSky data is active
+var lastLiveIata    = '';
 var _simUid         = 0;
-var selectedAirline = 'TOP';   // 'TOP' = auto-pick top airline, 'ALL' = all, or ICAO code
+var selectedAirline = 'TOP';     // 'TOP' | 'ALL' | ICAO code
+var _lastSeenAt     = {};        // icao24 → timestamp for stale-aircraft eviction
+
+// ── Dead reckoning ────────────────────────────────────────────
+// Extrapolates position forward by dtSeconds using speed + heading.
+function deadReckon(lat, lon, headingDeg, speedKts, dtSeconds) {
+  if (!speedKts || speedKts < 10) return { lat: lat, lon: lon };
+  var speedMs = speedKts * 0.514444;
+  var distM   = speedMs * dtSeconds;
+  var bearing = headingDeg * Math.PI / 180;
+  var R       = 6371000;
+  var lat1    = lat * Math.PI / 180;
+  var lon1    = lon * Math.PI / 180;
+  var sinLat2 = Math.sin(lat1) * Math.cos(distM / R) +
+                Math.cos(lat1) * Math.sin(distM / R) * Math.cos(bearing);
+  var lat2    = Math.asin(Math.max(-1, Math.min(1, sinLat2)));
+  var lon2    = lon1 + Math.atan2(
+    Math.sin(bearing) * Math.sin(distM / R) * Math.cos(lat1),
+    Math.cos(distM / R) - Math.sin(lat1) * sinLat2
+  );
+  return {
+    lat: lat2 * 180 / Math.PI,
+    lon: ((lon2 * 180 / Math.PI) + 540) % 360 - 180,
+  };
+}
+
+// ── Flight phase ──────────────────────────────────────────────
+function estimatePhase(ac) {
+  // Live aircraft carry vertRate (m/s from OpenSky)
+  if (typeof ac.vertRate === 'number') {
+    if (ac.vertRate >  2) return 'climb';
+    if (ac.vertRate < -2) return 'descent';
+    return 'cruise';
+  }
+  // Simulated aircraft carry f (0..1 route fraction)
+  if (typeof ac.f === 'number') {
+    if (ac.f < 0.18) return 'climb';
+    if (ac.f > 0.82) return 'descent';
+  }
+  return 'cruise';
+}
 
 // Expand every route into both directions
 function allDirections() {
@@ -2357,32 +2452,140 @@ function buildFleet() {
   return fleet;
 }
 
+// ── Interpolation tick (runs every 2 s) ──────────────────────
+// For live aircraft: apply dead reckoning between API polls.
+// For simulated fallback aircraft: advance along great-circle route.
 function tickFleet() {
-  var density = trafficDensity();
-  var target  = Math.round(ALL_ROUTES.length * density * 1.8);
+  var now = Date.now();
 
   simFleet = simFleet.filter(function(ac) {
-    ac.f += ac.df;
-    if (ac.f >= 1) return false;
-    var src = AP[ac.from], dst = AP[ac.to];
-    if (!src || !dst) return false;
-    var pos   = gcPoint(src.lat, src.lon, dst.lat, dst.lon, ac.f);
-    var fA    = Math.min(ac.f + 0.004, 0.999);
-    var ahead = gcPoint(src.lat, src.lon, dst.lat, dst.lon, fA);
-    ac.lat      = pos.lat;
-    ac.lon      = pos.lon;
-    ac.heading  = gcBearing(pos.lat, pos.lon, ahead.lat, ahead.lon);
-    ac.altFt    = modelAltFt(ac.f, ac.distKm);
-    ac.speedKts = modelSpeedKts(ac.f, ac.distKm);
-    return true;
+    if (ac.icao24) {
+      // ── Live aircraft ───────────────────────────────────────
+      if (ac.onGround) return true;  // parked — don't move
+      var moved = deadReckon(ac.lat, ac.lon, ac.heading, ac.speedKts, 2);
+      ac.lat = moved.lat;
+      ac.lon = moved.lon;
+      // Evict if not seen in a live poll for >90 s (likely landed / OOR)
+      return (now - (ac._seenAt || now)) < 90000;
+    } else {
+      // ── Simulated fallback aircraft ─────────────────────────
+      ac.f += ac.df;
+      if (ac.f >= 1) return false;
+      var src = AP[ac.from], dst = AP[ac.to];
+      if (!src || !dst) return false;
+      var pos   = gcPoint(src.lat, src.lon, dst.lat, dst.lon, ac.f);
+      var fA    = Math.min(ac.f + 0.004, 0.999);
+      var ahead = gcPoint(src.lat, src.lon, dst.lat, dst.lon, fA);
+      ac.lat      = pos.lat;
+      ac.lon      = pos.lon;
+      ac.heading  = gcBearing(pos.lat, pos.lon, ahead.lat, ahead.lon);
+      ac.altFt    = modelAltFt(ac.f, ac.distKm);
+      ac.speedKts = modelSpeedKts(ac.f, ac.distKm);
+      return true;
+    }
   });
 
-  // Respawn to maintain target density — spawn at origin (f≈0)
-  var deficit = target - simFleet.length;
-  for (var i = 0; i < Math.min(deficit, 6); i++) {
-    var r  = ALL_ROUTES[Math.floor(Math.random() * ALL_ROUTES.length)];
-    var ac = spawnAircraft(r, Math.random() * 0.04);
-    if (ac) simFleet.push(ac);
+  // Respawn simulated aircraft only in fallback (no live data) mode
+  if (!liveApiMode) {
+    var density = trafficDensity();
+    var target  = Math.round(ALL_ROUTES.length * density * 1.8);
+    var deficit = target - simFleet.length;
+    for (var i = 0; i < Math.min(deficit, 6); i++) {
+      var r  = ALL_ROUTES[Math.floor(Math.random() * ALL_ROUTES.length)];
+      var ac = spawnAircraft(r, Math.random() * 0.04);
+      if (ac) simFleet.push(ac);
+    }
+  }
+}
+
+// ── Merge live API data into simFleet ─────────────────────────
+// Called every 20 s when a fresh /api/live-traffic response arrives.
+// Add new aircraft, update existing ones in-place (no teleporting),
+// mark each with a _seenAt timestamp for staleness eviction.
+function _mergeLiveData(incoming) {
+  var now = Date.now();
+  var byIcao = {};
+  incoming.forEach(function(a) { byIcao[a.icao24] = a; });
+
+  // Update existing live aircraft
+  simFleet.forEach(function(ac) {
+    if (!ac.icao24) return;
+    var fresh = byIcao[ac.icao24];
+    if (!fresh) return;
+    // Snap to authoritative API position (corrects accumulated DR drift)
+    ac.lat      = fresh.lat;
+    ac.lon      = fresh.lon;
+    ac.altFt    = fresh.altFt;
+    ac.speedKts = fresh.speedKts;
+    ac.heading  = fresh.heading;
+    ac.vertRate = fresh.vertRate;
+    ac.onGround = fresh.onGround;
+    ac.squawk   = fresh.squawk;
+    if (fresh.airline) ac.airline = fresh.airline;
+    ac._seenAt  = now;
+    delete byIcao[ac.icao24];  // mark as handled
+  });
+
+  // Add brand-new aircraft from the API response
+  Object.keys(byIcao).forEach(function(icao) {
+    var a = byIcao[icao];
+    simFleet.push({
+      id:       a.icao24,
+      icao24:   a.icao24,
+      callsign: (a.callsign || a.icao24).trim(),
+      airline:  a.airline || '',
+      lat:      a.lat,
+      lon:      a.lon,
+      altFt:    a.altFt,
+      speedKts: a.speedKts,
+      heading:  a.heading,
+      vertRate: a.vertRate,
+      onGround: a.onGround,
+      squawk:   a.squawk,
+      _seenAt:  now,
+      // Route fields populated async when user clicks the aircraft
+      from:     null,
+      to:       null,
+      distKm:   null,
+    });
+  });
+}
+
+// ── Live API poller ───────────────────────────────────────────
+function fetchLiveTraffic(iata) {
+  if (!iata || !liveTrafficOn) return;
+  fetch('/api/live-traffic?airportIata=' + encodeURIComponent(iata))
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(data) {
+      if (data && Array.isArray(data.aircraft) && data.aircraft.length > 0) {
+        // Remove stale simulation aircraft before activating live mode
+        if (!liveApiMode) {
+          simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
+        }
+        liveApiMode = true;
+        _mergeLiveData(data.aircraft);
+        _setLiveBadge(true, data.count, iata);
+      } else {
+        // API returned empty — keep whatever we have, flag as demo
+        if (!liveApiMode && simFleet.length === 0) simFleet = buildFleet();
+        _setLiveBadge(false, 0, iata);
+      }
+    })
+    .catch(function() {
+      if (!liveApiMode && simFleet.length === 0) simFleet = buildFleet();
+      _setLiveBadge(false, 0, iata);
+    });
+}
+
+function _setLiveBadge(isLive, count, iata) {
+  var el = document.getElementById('liveDataBadge');
+  if (!el) return;
+  if (isLive) {
+    el.textContent = '● LIVE  ' + count + ' aircraft near ' + (iata || '');
+    el.style.color = 'var(--safe)';
+  } else {
+    el.textContent = '○ DEMO MODE';
+    el.style.color = 'var(--muted)';
   }
 }
 
@@ -2481,18 +2684,36 @@ function updateTrafficCount(n) {
 function startLiveTraffic() {
   if (liveTrafficOn) return;
   liveTrafficOn = true;
+
+  // Seed the map immediately with simulation while we wait for the first API call
   simFleet = buildFleet();
   renderFleet();
+
+  // Fire the first live-data fetch immediately
+  var iata = document.getElementById('airportSelect')?.value || '';
+  if (iata) fetchLiveTraffic(iata);
+
+  // Poll OpenSky every 20 s (state vectors update ~every 10–15 s)
+  liveTimer = setInterval(function() {
+    var cur = document.getElementById('airportSelect')?.value || '';
+    if (cur) fetchLiveTraffic(cur);
+  }, 20000);
+
+  // Interpolate + render every 2 s (dead reckoning between polls)
   simTimer = setInterval(function() { tickFleet(); renderFleet(); }, 2000);
+
   var btn = document.getElementById('trafficToggleBtn');
   if (btn) { btn.textContent = '⏹ Hide Traffic'; btn.style.color = 'var(--safe)'; }
 }
 
 function stopLiveTraffic() {
   liveTrafficOn = false;
+  liveApiMode   = false;
+  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
   clearInterval(simTimer);
   clearTrafficMarkers();
   updateTrafficCount(0);
+  _setLiveBadge(false, 0, '');
   var btn = document.getElementById('trafficToggleBtn');
   if (btn) { btn.textContent = '✈ Show Live Traffic'; btn.style.color = ''; }
 }
@@ -2501,36 +2722,79 @@ function toggleLiveTraffic() {
   if (liveTrafficOn) { stopLiveTraffic(); } else { startLiveTraffic(); }
 }
 
-// ICAO airline code → { name, color }
+// ── ICAO airline code → { name, color } ──────────────────────
+// Covers every major US carrier (including IATA aliases for codes that
+// occasionally appear in OpenSky callsigns), all key regionals, major
+// cargo operators, and the top international carriers flying US routes.
 const AIRLINE_INFO = {
-  AAL: { name: 'American Airlines',   color: '#C8102E' },
-  UAL: { name: 'United Airlines',     color: '#005DAA' },
-  DAL: { name: 'Delta Air Lines',     color: '#7B3F9E' },
-  SWA: { name: 'Southwest Airlines',  color: '#F9A11B' },
-  JBU: { name: 'JetBlue',             color: '#00B2A9' },
-  ASA: { name: 'Alaska Airlines',     color: '#01426A' },
-  NKS: { name: 'Spirit Airlines',     color: '#FFD200' },
-  FFT: { name: 'Frontier Airlines',   color: '#5CA044' },
-  SKW: { name: 'SkyWest Airlines',    color: '#00529B' },
-  OO:  { name: 'SkyWest (OO)',         color: '#4A90D9' },
-  HAL: { name: 'Hawaiian Airlines',   color: '#E4003B' },
-  ENY: { name: 'Envoy Air',           color: '#00175B' },
-  EJA: { name: 'NetJets',             color: '#C8A96E' },
-  FDX: { name: 'FedEx',              color: '#FF6600' },
-  UPS: { name: 'UPS',                 color: '#351C15' },
-  WJA: { name: 'WestJet',             color: '#0047AB' },
-  ACA: { name: 'Air Canada',          color: '#F01428' },
-  BAW: { name: 'British Airways',     color: '#2B5899' },
-  DLH: { name: 'Lufthansa',           color: '#05164D' },
-  AFR: { name: 'Air France',          color: '#002395' },
-  KLM: { name: 'KLM',                 color: '#009FDF' },
-  IBE: { name: 'Iberia',              color: '#C8102E' },
-  QFA: { name: 'Qantas',              color: '#E8112D' },
-  SIA: { name: 'Singapore Airlines',  color: '#00387B' },
-  EIN: { name: 'Aer Lingus',          color: '#006837' },
-  EZY: { name: 'easyJet',             color: '#FF6600' },
-  RYR: { name: 'Ryanair',             color: '#073590' },
-  VIR: { name: 'Virgin Atlantic',     color: '#E1001A' },
+  // ── US Majors ───────────────────────────────────────────────
+  AAL: { name: 'American Airlines',    color: '#C8102E' },
+  UAL: { name: 'United Airlines',      color: '#005DAA' },
+  DAL: { name: 'Delta Air Lines',      color: '#7B3F9E' },
+  SWA: { name: 'Southwest Airlines',   color: '#F9A11B' },
+  WN:  { name: 'Southwest Airlines',   color: '#F9A11B' },  // IATA alias
+  JBU: { name: 'JetBlue Airways',      color: '#00B2A9' },
+  ASA: { name: 'Alaska Airlines',      color: '#01426A' },
+  NKS: { name: 'Spirit Airlines',      color: '#FFD200' },
+  NK:  { name: 'Spirit Airlines',      color: '#FFD200' },  // IATA alias
+  FFT: { name: 'Frontier Airlines',    color: '#5CA044' },
+  F9:  { name: 'Frontier Airlines',    color: '#5CA044' },  // IATA alias
+  AAY: { name: 'Allegiant Air',        color: '#00B0FF' },
+  G4:  { name: 'Allegiant Air',        color: '#00B0FF' },  // IATA alias
+  SCX: { name: 'Sun Country Airlines', color: '#CC0033' },
+  SY:  { name: 'Sun Country Airlines', color: '#CC0033' },  // IATA alias
+  BZE: { name: 'Breeze Airways',       color: '#7FC6C8' },
+  VXP: { name: 'Avelo Airlines',       color: '#A6093D' },
+  HAL: { name: 'Hawaiian Airlines',    color: '#E4003B' },
+  // ── US Regionals ───────────────────────────────────────────
+  SKW: { name: 'SkyWest Airlines',     color: '#00529B' },
+  ENY: { name: 'Envoy Air',            color: '#00175B' },
+  RPA: { name: 'Republic Airways',     color: '#0C3C72' },
+  PDT: { name: 'Horizon Air',          color: '#00B140' },
+  ASH: { name: 'Mesa Air',             color: '#0082CA' },
+  SIL: { name: 'Silver Airways',       color: '#C0C0C0' },
+  CPZ: { name: 'Compass Airlines',     color: '#1A237E' },
+  // ── US Cargo ───────────────────────────────────────────────
+  FDX: { name: 'FedEx Express',        color: '#FF6600' },
+  UPS: { name: 'UPS Airlines',         color: '#351C15' },
+  GTI: { name: 'Atlas Air',            color: '#1B4F72' },
+  ABX: { name: 'ABX Air (DHL)',         color: '#FFCC00' },
+  KFS: { name: 'Kalitta Air',          color: '#1F618D' },
+  PAC: { name: 'Polar Air Cargo',      color: '#1565C0' },
+  // ── Business / Charter ────────────────────────────────────
+  EJA: { name: 'NetJets',              color: '#C8A96E' },
+  // ── Canada ─────────────────────────────────────────────────
+  ACA: { name: 'Air Canada',           color: '#F01428' },
+  WJA: { name: 'WestJet',              color: '#0047AB' },
+  // ── Europe ─────────────────────────────────────────────────
+  BAW: { name: 'British Airways',      color: '#2B5899' },
+  DLH: { name: 'Lufthansa',            color: '#05164D' },
+  AFR: { name: 'Air France',           color: '#002395' },
+  KLM: { name: 'KLM',                  color: '#009FDF' },
+  IBE: { name: 'Iberia',               color: '#C8102E' },
+  EIN: { name: 'Aer Lingus',           color: '#006837' },
+  VIR: { name: 'Virgin Atlantic',      color: '#E1001A' },
+  EZY: { name: 'easyJet',              color: '#FF6600' },
+  RYR: { name: 'Ryanair',              color: '#073590' },
+  SAS: { name: 'Scandinavian Airlines',color: '#003088' },
+  TAP: { name: 'TAP Air Portugal',     color: '#00543D' },
+  // ── Middle East ────────────────────────────────────────────
+  UAE: { name: 'Emirates',             color: '#C8102E' },
+  ETD: { name: 'Etihad Airways',       color: '#BF9B68' },
+  QTR: { name: 'Qatar Airways',        color: '#5C0632' },
+  // ── Asia-Pacific ───────────────────────────────────────────
+  QFA: { name: 'Qantas',               color: '#E8112D' },
+  SIA: { name: 'Singapore Airlines',   color: '#00387B' },
+  JAL: { name: 'Japan Airlines',       color: '#C8102E' },
+  ANA: { name: 'All Nippon Airways',   color: '#16499A' },
+  CPA: { name: 'Cathay Pacific',       color: '#006564' },
+  KAL: { name: 'Korean Air',           color: '#00256C' },
+  AAR: { name: 'Asiana Airlines',      color: '#C8102E' },
+  // ── Latin America ──────────────────────────────────────────
+  AMX: { name: 'Aeromexico',           color: '#00205B' },
+  TAM: { name: 'LATAM Airlines',       color: '#DA3A00' },
+  VOI: { name: 'Volaris',              color: '#5B2D8F' },
+  GLO: { name: 'Gol Airlines',         color: '#FF6A00' },
 };
 
 function airlineColor(code) {
@@ -2687,13 +2951,74 @@ function _clearMiniMap() {
   if (miniPlaneMarker)   { miniPlaneMarker.setMap(null);   miniPlaneMarker   = null; }
 }
 
+// ── Helper: build popup/panel route row ───────────────────────
+// For simulated aircraft ac.from/to are always set.
+// For live aircraft they start null and get filled in by the
+// async /api/flight-status call below.
+function _routeDisplay(ac) {
+  if (ac.from && ac.to) return esc(ac.from) + ' → ' + esc(ac.to);
+  return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">fetching route…</span>';
+}
+
+// Async route lookup for live aircraft — fires off a flight-status
+// request and patches the popup/panel once the answer arrives.
+function _fetchAndPatchRoute(ac) {
+  if (!ac.icao24) return;           // simulation — already has from/to
+  if (ac.from && ac.to) {           // already resolved from a prior click
+    _drawRouteArc(ac);
+    return;
+  }
+  var cs = (ac.callsign || '').replace(/\s+/g, '').toUpperCase();
+  if (cs.length < 3) return;
+
+  fetch('/api/flight-status?flight=' + encodeURIComponent(cs))
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (!d || d.mock || d.error) return;
+      var ori  = d.origin      && d.origin.iata;
+      var dest = d.destination && d.destination.iata;
+      if (!ori || !dest) return;
+
+      // Persist on the aircraft object so subsequent clicks are instant
+      ac.from   = ori;
+      ac.to     = dest;
+      if (AP[ori] && AP[dest]) {
+        ac.distKm = gcDistKm(AP[ori].lat, AP[ori].lon, AP[dest].lat, AP[dest].lon);
+      }
+
+      // Patch any open popup route span
+      var el = document.getElementById('ppRouteLive');
+      if (el) el.outerHTML = esc(ori) + ' → ' + esc(dest);
+
+      // Draw the arc now that we have coordinates
+      _drawRouteArc(ac);
+      if (panelOpen && _panelAc && _panelAc.icao24 === ac.icao24) {
+        _updateMiniMap(ac);
+      }
+    })
+    .catch(function(){});
+}
+
 // ── Quick popup (InfoWindow-style, on-map) ────────────────────
 function openPlanePopup(ac) {
   _panelAc = ac;
   var color      = airlineColor(ac.airline);
-  var phase      = ac.f < 0.18 ? 'climb' : ac.f > 0.82 ? 'descent' : 'cruise';
-  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase];
-  var pct        = Math.round(ac.f * 100);
+  var phase      = estimatePhase(ac);
+  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase] || '→ Cruising';
+  var pct        = typeof ac.f === 'number' ? Math.round(ac.f * 100) : null;
+
+  var progressSection = '';
+  if (pct !== null && ac.from && ac.to) {
+    progressSection =
+      '<div class="plane-popup-progress">' +
+        '<div class="plane-popup-progress-label">' +
+          '<span>' + esc(ac.from) + '</span>' +
+          '<span style="color:#60a5fa;font-weight:700;">' + pct + '% complete</span>' +
+          '<span>' + esc(ac.to) + '</span>' +
+        '</div>' +
+        '<div class="plane-popup-progress-track"><div class="plane-popup-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+      '</div>';
+  }
 
   var content =
     '<div class="plane-popup">' +
@@ -2707,17 +3032,14 @@ function openPlanePopup(ac) {
         esc(airlineName(ac.airline)) +
       '</div>' +
       '<div class="plane-popup-body">' +
-        '<div class="plane-popup-row"><span class="pp-lbl">Route</span><span class="pp-val">' + esc(ac.from) + ' → ' + esc(ac.to) + '</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Route</span><span class="pp-val">' + _routeDisplay(ac) + '</span></div>' +
         '<div class="plane-popup-row"><span class="pp-lbl">Phase</span><span class="pp-val">' + phaseLabel + '</span></div>' +
-        '<div class="plane-popup-row"><span class="pp-lbl">Altitude</span><span class="pp-val">' + ac.altFt.toLocaleString() + ' ft</span></div>' +
-        '<div class="plane-popup-row"><span class="pp-lbl">Speed</span><span class="pp-val">' + ac.speedKts + ' kts</span></div>' +
-        '<div class="plane-popup-row"><span class="pp-lbl">Heading</span><span class="pp-val">' + Math.round(ac.heading) + '°</span></div>' +
-        '<div class="plane-popup-row"><span class="pp-lbl">Route KM</span><span class="pp-val">' + Math.round(ac.distKm).toLocaleString() + '</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Altitude</span><span class="pp-val">' + (ac.altFt || 0).toLocaleString() + ' ft</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Speed</span><span class="pp-val">' + (ac.speedKts || 0) + ' kts</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Heading</span><span class="pp-val">' + Math.round(ac.heading || 0) + '°</span></div>' +
+        (ac.squawk ? '<div class="plane-popup-row"><span class="pp-lbl">Squawk</span><span class="pp-val">' + esc(ac.squawk) + '</span></div>' : '') +
       '</div>' +
-      '<div class="plane-popup-progress">' +
-        '<div class="plane-popup-progress-label"><span>' + esc(ac.from) + '</span><span style="color:#60a5fa;font-weight:700;">' + pct + '% complete</span><span>' + esc(ac.to) + '</span></div>' +
-        '<div class="plane-popup-progress-track"><div class="plane-popup-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
-      '</div>' +
+      progressSection +
     '</div>';
 
   if (!planeInfoWindow) {
@@ -2729,7 +3051,12 @@ function openPlanePopup(ac) {
   planeInfoWindow.setPosition({ lat: ac.lat, lng: ac.lon });
   planeInfoWindow.open(gmap);
 
-  _drawRouteArc(ac);
+  // Draw route arc if we have from/to; otherwise kick off an async fetch
+  if (ac.from && ac.to) {
+    _drawRouteArc(ac);
+  } else {
+    _fetchAndPatchRoute(ac);
+  }
   gmap.panTo({ lat: ac.lat, lng: ac.lon });
 }
 
@@ -2753,46 +3080,60 @@ function openPlanePanel(ac) {
   panelOpen = true;
 
   var color      = airlineColor(ac.airline);
-  var phase      = ac.f < 0.18 ? 'climb' : ac.f > 0.82 ? 'descent' : 'cruise';
-  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase];
-  var pct        = Math.round(ac.f * 100);
+  var phase      = estimatePhase(ac);
+  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase] || '→ Cruising';
+  var pct        = typeof ac.f === 'number' ? Math.round(ac.f * 100) : null;
+
+  var routeRow = ac.from && ac.to
+    ? '<div class="pp-route">' +
+        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac.from) + '</div></div>' +
+        '<span class="pp-arrow">✈ ──────</span>' +
+        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac.to) + '</div></div>' +
+      '</div>'
+    : '<div class="pp-route"><span id="ppRouteLive" style="color:var(--muted);font-size:12px;text-align:center;width:100%;display:block;">Fetching route…</span></div>';
+
+  var progressSection = pct !== null && ac.from && ac.to
+    ? '<div class="pp-progress-wrap">' +
+        '<div class="pp-progress-label">' +
+          '<span>' + esc(ac.from) + '</span>' +
+          '<span style="color:var(--accent);font-weight:700;">' + pct + '% complete</span>' +
+          '<span>' + esc(ac.to) + '</span>' +
+        '</div>' +
+        '<div class="pp-progress-bar"><div class="pp-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+      '</div>'
+    : '';
 
   document.getElementById('planePanelContent').innerHTML =
     '<div class="pp-airline-row">' +
       '<span class="pp-dot" style="background:' + color + ';"></span>' +
       '<span class="pp-airline-name">' + esc(airlineName(ac.airline)) + '</span>' +
+      (ac.icao24 ? '<span style="font-size:10px;color:var(--muted);margin-left:auto;font-family:monospace;">' + esc(ac.icao24.toUpperCase()) + '</span>' : '') +
     '</div>' +
     '<div class="pp-callsign">' + esc(ac.callsign) + '</div>' +
-    '<div class="pp-route">' +
-      '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac.from) + '</div></div>' +
-      '<span class="pp-arrow">✈ ──────</span>' +
-      '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac.to) + '</div></div>' +
-    '</div>' +
+    routeRow +
     '<div class="pp-phase ' + phase + '">' + phaseLabel + '</div>' +
-    '<div class="pp-progress-wrap">' +
-      '<div class="pp-progress-label">' +
-        '<span>' + esc(ac.from) + '</span>' +
-        '<span style="color:var(--accent);font-weight:700;">' + pct + '% complete</span>' +
-        '<span>' + esc(ac.to) + '</span>' +
-      '</div>' +
-      '<div class="pp-progress-bar"><div class="pp-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
-    '</div>' +
+    progressSection +
     '<div class="pp-stats">' +
-      '<div class="pp-stat"><div class="pp-stat-label">Altitude</div><div class="pp-stat-value">' + ac.altFt.toLocaleString() + ' ft</div></div>' +
-      '<div class="pp-stat"><div class="pp-stat-label">Speed</div><div class="pp-stat-value">' + ac.speedKts + ' kts</div></div>' +
-      '<div class="pp-stat"><div class="pp-stat-label">Heading</div><div class="pp-stat-value">' + Math.round(ac.heading) + '°</div></div>' +
-      '<div class="pp-stat"><div class="pp-stat-label">Route KM</div><div class="pp-stat-value">' + Math.round(ac.distKm).toLocaleString() + '</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Altitude</div><div class="pp-stat-value">' + (ac.altFt || 0).toLocaleString() + ' ft</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Speed</div><div class="pp-stat-value">' + (ac.speedKts || 0) + ' kts</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Heading</div><div class="pp-stat-value">' + Math.round(ac.heading || 0) + '°</div></div>' +
+      (ac.squawk ? '<div class="pp-stat"><div class="pp-stat-label">Squawk</div><div class="pp-stat-value">' + esc(ac.squawk) + '</div></div>' : '') +
+      (ac.distKm ? '<div class="pp-stat"><div class="pp-stat-label">Route KM</div><div class="pp-stat-value">' + Math.round(ac.distKm).toLocaleString() + '</div></div>' : '') +
     '</div>';
 
   document.getElementById('planePanel').classList.add('open');
 
-  // Route arc stays / gets drawn
-  _drawRouteArc(ac);
+  // Draw arc if route is known; otherwise fetch async (live aircraft)
+  if (ac.from && ac.to) {
+    _drawRouteArc(ac);
+  } else {
+    _fetchAndPatchRoute(ac);
+  }
   if (mapsReady && gmap) gmap.panTo({ lat: ac.lat, lng: ac.lon });
 
   setTimeout(function() {
     if (mapsReady && gmap) google.maps.event.trigger(gmap, 'resize');
-    _updateMiniMap(ac);
+    if (ac.from && ac.to) _updateMiniMap(ac);
   }, 400);
 }
 
