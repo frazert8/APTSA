@@ -23,7 +23,7 @@ export interface Terminal {
 export interface WaitTimeSnapshot {
   id: string;
   terminal_id: string;
-  source: 'tsa_official' | 'crowd_aggregate' | 'hybrid';
+  source: 'tsa_official' | 'crowd_aggregate' | 'hybrid' | 'ml_predicted';
   wait_minutes: number;
   confidence_score: number;
   sample_size: number;
@@ -59,9 +59,11 @@ export interface WeightedWaitResult {
   estimatedWaitMinutes: number;
   confidenceScore: number;
   sampleSize: number;
-  source: 'tsa_official' | 'crowd_aggregate' | 'hybrid' | 'no_data';
+  source: 'tsa_official' | 'crowd_aggregate' | 'hybrid' | 'ml_predicted' | 'no_data';
   tsaRawMinutes: number | null;
   lastUpdated: string;
+  // Present when source === 'ml_predicted' — informs UI about model confidence
+  mlMeta?: { predictionSource: string; samples: number };
 }
 
 // Routing

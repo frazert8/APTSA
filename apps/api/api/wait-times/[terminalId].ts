@@ -16,16 +16,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!terminalId) return res.status(400).json({ error: 'terminalId required' });
 
   const cacheKey = CACHE_KEYS.waitTime(terminalId);
-  const cached = await redis.get<WeightedWaitResult>(cacheKey);
+  const cached   = await redis.get<WeightedWaitResult>(cacheKey);
   if (cached) {
     res.setHeader('X-Cache', 'HIT');
     return res.status(200).json(cached);
   }
 
-  // Fetch live_checks and TSA data in parallel.
-  // Reputation scores are fetched in a second query keyed by user_id
-  // (live_checks → auth.users ← user_trust_profiles, no direct FK).
-  const [checksResult, tsaMinutes] = await Promise.all([
+  // Fetch live checks and TSA/ML data in parallel
+  const [checksResult, tsaResult] = await Promise.all([
     supabase
       .from('live_checks')
       .select('id, terminal_id, user_id, wait_minutes, is_geofenced, trust_weight, submitted_at')
@@ -40,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const checks = checksResult.data ?? [];
 
-  // Fetch reputation scores for all unique submitters (empty if no live checks)
+  // Fetch reputation scores for all unique submitters
   const userIds = [...new Set(checks.map((c) => c.user_id))];
   const reputationMap = new Map<string, number>();
   if (userIds.length > 0) {
@@ -66,18 +64,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     reputation_score: reputationMap.get(row.user_id) ?? 1.0,
   }));
 
-  const result = computeWeightedWaitTime(enriched, tsaMinutes);
+  // Pass only the minute value to the trust algorithm
+  const tsaMinutes = tsaResult?.minutes ?? null;
+  const result     = computeWeightedWaitTime(enriched, tsaMinutes);
 
-  // Don't cache or persist a no_data zero — it would poison the cache for 60 s
-  // and make the UI display "0 min" instead of showing no estimate.
+  // ── Source label correction ───────────────────────────────
+  // computeWeightedWaitTime labels TSA-only results as 'tsa_official'.
+  // When the data actually came from the ML predictor, update the label
+  // so the client and DB accurately reflect the data provenance.
+  const isMLSource = tsaResult && tsaResult.dataSource !== 'live';
+
+  if (isMLSource && result.source === 'tsa_official') {
+    result.source  = 'ml_predicted';
+    result.mlMeta  = { predictionSource: tsaResult.dataSource, samples: 0 };
+  }
+
+  // Hybrid: crowd data blended with ML — still mark the TSA side as ML
+  if (isMLSource && result.source === 'hybrid') {
+    result.mlMeta = { predictionSource: tsaResult.dataSource, samples: 0 };
+  }
+
+  // ── No-data guard ─────────────────────────────────────────
+  // source=no_data means both crowd AND tsaResult were absent.
+  // This should only happen for completely unmapped terminals.
+  // Don't cache or persist it — let the next request retry fresh.
   if (result.source === 'no_data') {
     return res.status(200).json(result);
   }
 
+  // ── Persist and cache ─────────────────────────────────────
   await Promise.all([
     supabase.from('wait_time_snapshots').insert({
       terminal_id:      terminalId,
-      source:           result.source,
+      source:           result.source === 'hybrid' ? 'hybrid'
+                        : result.source === 'ml_predicted' ? 'ml_predicted'
+                        : result.source === 'crowd_aggregate' ? 'crowd_aggregate'
+                        : 'tsa_official',
       wait_minutes:     result.estimatedWaitMinutes,
       confidence_score: result.confidenceScore,
       sample_size:      result.sampleSize,
