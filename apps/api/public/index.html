@@ -3146,11 +3146,29 @@ function openPlanePanel(ac) {
   // Use time-based progress for verified live flights; sim progress factor otherwise.
   var pct = ac._routeVerified ? _livePct(ac) : (typeof ac.f === 'number' ? Math.round(ac.f * 100) : null);
 
-  // Route row: show immediately from any source; FlightAware updates city names in background.
+  // Route row: plane icon slides to the completion % along the track line.
+  var routeTrack = '';
+  if (ac.from && ac.to) {
+    var pos = (pct !== null) ? Math.max(2, Math.min(96, pct)) : 0;
+    // Two-segment line: completed (bright) left of plane, remaining (dim) right of plane
+    routeTrack =
+      '<div style="flex:1;position:relative;height:28px;margin:0 10px;align-self:center;">' +
+        // completed segment
+        '<div style="position:absolute;left:0;width:' + pos + '%;top:50%;height:2px;' +
+             'background:rgba(255,255,255,0.55);transform:translateY(-50%);border-radius:1px;"></div>' +
+        // remaining segment
+        '<div style="position:absolute;left:' + pos + '%;right:0;top:50%;height:2px;' +
+             'background:rgba(255,255,255,0.15);transform:translateY(-50%);border-radius:1px;"></div>' +
+        // plane icon at pos%
+        '<div style="position:absolute;left:' + pos + '%;top:50%;transform:translate(-50%,-50%);' +
+             'font-size:15px;line-height:1;color:' + color + ';" title="' + (pct !== null ? pct + '% complete' : '') + '">✈</div>' +
+      '</div>';
+  }
+
   var routeRow = ac.from && ac.to
     ? '<div class="pp-route">' +
         '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac._originCity || ac.from) + '</div></div>' +
-        '<span class="pp-arrow">✈ ──────</span>' +
+        routeTrack +
         '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac._destCity || ac.to) + '</div></div>' +
       '</div>'
     : '<div class="pp-route"><span style="color:var(--muted);font-size:12px;text-align:center;width:100%;display:block;">' +
