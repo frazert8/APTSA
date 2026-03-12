@@ -2019,15 +2019,15 @@ function onAirportChange() {
     liveApiMode        = false;
     _hasEverSeenLive   = false;
     lastLiveIata       = '';
-    // Remove live aircraft (those with icao24) from simFleet; remove their map markers
-    var liveIds = {};
-    simFleet.forEach(function(ac) { if (ac.icao24) liveIds[ac.id] = true; });
-    simFleet = simFleet.filter(function(ac) { return !ac.icao24; });
-    Object.keys(liveIds).forEach(function(id) {
-      if (trafficMarkers[id]) { trafficMarkers[id].setMap(null); delete trafficMarkers[id]; }
+    // Clear every aircraft and marker from the previous airport — no simulation
+    simFleet = [];
+    Object.keys(trafficMarkers).forEach(function(id) {
+      if (trafficMarkers[id]) trafficMarkers[id].setMap(null);
     });
-    // Rebuild simulation for the new airport and immediately fetch live data
-    simFleet = buildFleet();
+    trafficMarkers = {};
+    closePlanePopup();
+    closePlanePanel();
+    _setLiveBadge('loading', 0, iata);
     renderFleet();
     fetchLiveTraffic(iata);
   }
@@ -2977,52 +2977,88 @@ function _clearMiniMap() {
   if (miniPlaneMarker)   { miniPlaneMarker.setMap(null);   miniPlaneMarker   = null; }
 }
 
-// ── Helper: build popup/panel route row ───────────────────────
-// For simulated aircraft ac.from/to are always set.
-// For live aircraft they start null and get filled in by the
-// async /api/flight-status call below.
+// ── Helper: route row for popup ───────────────────────────────
+// Only shows a route once it has been confirmed by FlightAware.
+// Simulation aircraft show a "Demo" label; live aircraft show
+// "Looking up…" until _fetchAndPatchRoute() resolves.
 function _routeDisplay(ac) {
-  if (ac.from && ac.to) return esc(ac.from) + ' → ' + esc(ac.to);
-  return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">fetching route…</span>';
+  if (ac._routeVerified && ac.from && ac.to) return esc(ac.from) + ' → ' + esc(ac.to);
+  if (!ac.icao24) return '<span style="color:var(--muted);font-size:11px;">Demo flight</span>';
+  return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">Looking up route…</span>';
 }
 
-// Async route lookup for live aircraft — fires off a flight-status
-// request and patches the popup/panel once the answer arrives.
+// ── Verified progress % for live aircraft ─────────────────────
+// Uses actual departure / scheduled arrival times returned by
+// FlightAware so the progress bar reflects real elapsed time.
+function _livePct(ac) {
+  if (!ac._depTime || !ac._arrTime || ac._arrTime <= ac._depTime) return null;
+  var pct = Math.round((Date.now() - ac._depTime) / (ac._arrTime - ac._depTime) * 100);
+  return Math.max(0, Math.min(100, pct));
+}
+
+// ── Async route lookup with FlightAware verification ──────────
+// Called every time the user opens a popup/panel for a live
+// aircraft. Skips if already verified (_routeVerified flag).
+// For simulation aircraft (no icao24) it is a no-op — they show
+// the "Demo flight" label defined in _routeDisplay().
 function _fetchAndPatchRoute(ac) {
-  if (!ac.icao24) return;           // simulation — already has from/to
-  if (ac.from && ac.to) {           // already resolved from a prior click
+  if (!ac.icao24) return;           // simulation — _routeDisplay shows "Demo flight"
+  if (ac._routeVerified) {          // already confirmed by FlightAware this session
     _drawRouteArc(ac);
     return;
   }
+
   var cs = (ac.callsign || '').replace(/\s+/g, '').toUpperCase();
   if (cs.length < 3) return;
 
   fetch('/api/flight-status?flight=' + encodeURIComponent(cs))
-    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(r) {
+      // 404 means FlightAware has no record — mark as verified-unknown so
+      // we don't re-fetch on every subsequent click.
+      if (r.status === 404) { ac._routeVerified = true; return null; }
+      return r.ok ? r.json() : null;
+    })
     .then(function(d) {
-      if (!d || d.mock || d.error) return;
+      if (!d || d.mock || d.source === 'demo' || d.error) {
+        // Demo/mock fallback — don't display as real route
+        return;
+      }
+
       var ori  = d.origin      && d.origin.iata;
       var dest = d.destination && d.destination.iata;
       if (!ori || !dest) return;
 
-      // Persist on the aircraft object so subsequent clicks are instant
-      ac.from   = ori;
-      ac.to     = dest;
+      // Mark route as verified — this is real FlightAware data
+      ac._routeVerified = true;
+      ac.from           = ori;
+      ac.to             = dest;
+      ac._originCity    = (d.origin.city  || ori);
+      ac._destCity      = (d.destination.city || dest);
+
+      // Store departure / arrival timestamps for time-based progress bar
+      var depStr = d.departure && (d.departure.actual || d.departure.scheduled);
+      var arrStr = d.arrival   && (d.arrival.scheduled || d.arrival.actual);
+      if (depStr) ac._depTime = new Date(depStr).getTime();
+      if (arrStr) ac._arrTime = new Date(arrStr).getTime();
+
       if (AP[ori] && AP[dest]) {
         ac.distKm = gcDistKm(AP[ori].lat, AP[ori].lon, AP[dest].lat, AP[dest].lon);
       }
 
-      // Patch any open popup route span
-      var el = document.getElementById('ppRouteLive');
-      if (el) el.outerHTML = esc(ori) + ' → ' + esc(dest);
-
-      // Draw the arc now that we have coordinates
-      _drawRouteArc(ac);
-      if (panelOpen && _panelAc && _panelAc.icao24 === ac.icao24) {
-        _updateMiniMap(ac);
+      // Re-render the open popup / panel with verified data
+      if (_panelAc && _panelAc.icao24 === ac.icao24) {
+        if (panelOpen) {
+          openPlanePanel(ac);   // full re-render
+        } else {
+          openPlanePopup(ac);   // re-render quick popup
+        }
       }
+
+      _drawRouteArc(ac);
     })
-    .catch(function(){});
+    .catch(function() {
+      // Network error — don't mark as verified; will retry next click
+    });
 }
 
 // ── Quick popup (InfoWindow-style, on-map) ────────────────────
@@ -3031,10 +3067,11 @@ function openPlanePopup(ac) {
   var color      = airlineColor(ac.airline);
   var phase      = estimatePhase(ac);
   var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase] || '→ Cruising';
-  var pct        = typeof ac.f === 'number' ? Math.round(ac.f * 100) : null;
+  // For live aircraft use time-based progress; for sim use route progress factor.
+  var pct = ac._routeVerified ? _livePct(ac) : (typeof ac.f === 'number' ? Math.round(ac.f * 100) : null);
 
   var progressSection = '';
-  if (pct !== null && ac.from && ac.to) {
+  if (pct !== null && ac._routeVerified && ac.from && ac.to) {
     progressSection =
       '<div class="plane-popup-progress">' +
         '<div class="plane-popup-progress-label">' +
@@ -3077,12 +3114,10 @@ function openPlanePopup(ac) {
   planeInfoWindow.setPosition({ lat: ac.lat, lng: ac.lon });
   planeInfoWindow.open(gmap);
 
-  // Draw route arc if we have from/to; otherwise kick off an async fetch
-  if (ac.from && ac.to) {
-    _drawRouteArc(ac);
-  } else {
-    _fetchAndPatchRoute(ac);
-  }
+  // Always verify route with FlightAware — _fetchAndPatchRoute is a no-op
+  // if already verified this session, and re-renders the popup when done.
+  _fetchAndPatchRoute(ac);
+  if (ac._routeVerified && ac.from && ac.to) _drawRouteArc(ac);
   gmap.panTo({ lat: ac.lat, lng: ac.lon });
 }
 
@@ -3108,17 +3143,21 @@ function openPlanePanel(ac) {
   var color      = airlineColor(ac.airline);
   var phase      = estimatePhase(ac);
   var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase] || '→ Cruising';
-  var pct        = typeof ac.f === 'number' ? Math.round(ac.f * 100) : null;
+  // Use time-based progress for verified live flights; sim progress factor otherwise.
+  var pct = ac._routeVerified ? _livePct(ac) : (typeof ac.f === 'number' ? Math.round(ac.f * 100) : null);
 
-  var routeRow = ac.from && ac.to
+  // Route row: only show airport codes if FlightAware has confirmed them.
+  var routeRow = ac._routeVerified && ac.from && ac.to
     ? '<div class="pp-route">' +
-        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac.from) + '</div></div>' +
+        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac._originCity || ac.from) + '</div></div>' +
         '<span class="pp-arrow">✈ ──────</span>' +
-        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac.to) + '</div></div>' +
+        '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac._destCity || ac.to) + '</div></div>' +
       '</div>'
-    : '<div class="pp-route"><span id="ppRouteLive" style="color:var(--muted);font-size:12px;text-align:center;width:100%;display:block;">Fetching route…</span></div>';
+    : '<div class="pp-route"><span style="color:var(--muted);font-size:12px;text-align:center;width:100%;display:block;">' +
+        (!ac.icao24 ? 'Demo flight' : 'Looking up route…') +
+      '</span></div>';
 
-  var progressSection = pct !== null && ac.from && ac.to
+  var progressSection = pct !== null && ac._routeVerified && ac.from && ac.to
     ? '<div class="pp-progress-wrap">' +
         '<div class="pp-progress-label">' +
           '<span>' + esc(ac.from) + '</span>' +
@@ -3144,22 +3183,19 @@ function openPlanePanel(ac) {
       '<div class="pp-stat"><div class="pp-stat-label">Speed</div><div class="pp-stat-value">' + (ac.speedKts || 0) + ' kts</div></div>' +
       '<div class="pp-stat"><div class="pp-stat-label">Heading</div><div class="pp-stat-value">' + Math.round(ac.heading || 0) + '°</div></div>' +
       (ac.squawk ? '<div class="pp-stat"><div class="pp-stat-label">Squawk</div><div class="pp-stat-value">' + esc(ac.squawk) + '</div></div>' : '') +
-      (ac.distKm ? '<div class="pp-stat"><div class="pp-stat-label">Route KM</div><div class="pp-stat-value">' + Math.round(ac.distKm).toLocaleString() + '</div></div>' : '') +
+      (ac.distKm ? '<div class="pp-stat"><div class="pp-stat-label">Route Dist</div><div class="pp-stat-value">' + Math.round(ac.distKm).toLocaleString() + ' km</div></div>' : '') +
     '</div>';
 
   document.getElementById('planePanel').classList.add('open');
 
-  // Draw arc if route is known; otherwise fetch async (live aircraft)
-  if (ac.from && ac.to) {
-    _drawRouteArc(ac);
-  } else {
-    _fetchAndPatchRoute(ac);
-  }
+  // Always verify with FlightAware — no-op if already verified this session.
+  _fetchAndPatchRoute(ac);
+  if (ac._routeVerified && ac.from && ac.to) _drawRouteArc(ac);
   if (mapsReady && gmap) gmap.panTo({ lat: ac.lat, lng: ac.lon });
 
   setTimeout(function() {
     if (mapsReady && gmap) google.maps.event.trigger(gmap, 'resize');
-    if (ac.from && ac.to) _updateMiniMap(ac);
+    if (ac._routeVerified && ac.from && ac.to) _updateMiniMap(ac);
   }, 400);
 }
 
