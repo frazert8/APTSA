@@ -21,3 +21,4 @@ android/.gradle/
 web-build/
 .DS_Store
 Thumbs.db
+.vercel

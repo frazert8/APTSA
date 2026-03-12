@@ -3,21 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SwiftClear — Real-Time TSA Wait Times</title>
+  <title>SwiftClear — Real-Time TSA Intelligence</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #080C14;
-      --bg-card:   rgba(14, 20, 34, 0.75);
-      --border:    rgba(255, 255, 255, 0.10);
-      --text:      #F0F4FF;
-      --muted:     rgba(180, 195, 230, 0.55);
-      --accent:    #3B82F6;
-      --safe:      #22D3EE;
-      --soon:      #FBBF24;
-      --urgent:    #F97316;
-      --critical:  #EF4444;
+      --bg:       #080C14;
+      --bg-card:  rgba(14, 20, 34, 0.80);
+      --border:   rgba(255,255,255,0.09);
+      --border-h: rgba(255,255,255,0.20);
+      --text:     #F0F4FF;
+      --muted:    rgba(180,195,230,0.55);
+      --accent:   #3B82F6;
+      --safe:     #22D3EE;
+      --soon:     #FBBF24;
+      --urgent:   #F97316;
+      --critical: #EF4444;
+      --ai:       #8B5CF6;
+      --premium:  #F59E0B;
     }
 
     body {
@@ -27,831 +30,3070 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
-
     body::before {
       content: '';
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0; pointer-events: none;
       background:
-        radial-gradient(ellipse 60% 40% at 20% 20%, rgba(59,130,246,0.12) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(34,211,238,0.08) 0%, transparent 70%);
-      pointer-events: none;
+        radial-gradient(ellipse 60% 40% at 20% 20%, rgba(59,130,246,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(139,92,246,0.07) 0%, transparent 70%);
     }
 
-    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    .container { max-width: 980px; margin: 0 auto; padding: 0 20px; }
 
-    /* ── Nav ── */
+    /* ── NAV ── */
     nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 24px 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 0; border-bottom: 1px solid var(--border);
     }
-    .wordmark {
-      font-family: 'Courier New', monospace;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: var(--text);
+    .wordmark { font-family: 'Courier New', monospace; font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .last-updated { font-size: 12px; color: var(--muted); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--muted); padding: 7px 14px; border-radius: 10px;
+      font-size: 13px; cursor: pointer; transition: all 0.2s;
     }
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-h); }
+    .btn-premium {
+      background: linear-gradient(135deg, #92400E, #F59E0B);
+      color: #fff; border: none; padding: 7px 16px;
+      border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
-    .last-updated {
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .refresh-btn {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 7px 14px;
-      border-radius: 10px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: color 0.2s, border-color 0.2s;
-    }
-    .refresh-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
 
-    /* ── Hero ── */
-    .hero {
-      text-align: center;
-      padding: 72px 0 56px;
-    }
+    /* ── HERO ── */
+    .hero { text-align: center; padding: 52px 0 36px; }
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(59,130,246,0.12);
-      border: 1px solid rgba(59,130,246,0.30);
-      border-radius: 999px;
-      padding: 5px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 28px;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.30);
+      border-radius: 999px; padding: 5px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      color: var(--accent); text-transform: uppercase; margin-bottom: 18px;
     }
-    .badge-dot {
-      width: 6px; height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
-      animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-    h1 {
-      font-size: clamp(36px, 7vw, 68px);
-      font-weight: 800;
-      line-height: 1.05;
-      letter-spacing: -2px;
-      margin-bottom: 20px;
-    }
+    .badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    h1 { font-size: clamp(30px, 6vw, 56px); font-weight: 800; line-height: 1.08; letter-spacing: -2px; margin-bottom: 14px; }
     h1 span { color: var(--accent); }
-    .hero-sub {
-      font-size: clamp(16px, 2.5vw, 19px);
-      color: var(--muted);
-      max-width: 500px;
-      margin: 0 auto 40px;
-      line-height: 1.6;
-    }
-    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 28px;
-      border-radius: 14px;
-      font-size: 15px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: opacity 0.2s, transform 0.15s;
-      cursor: pointer;
-      border: none;
-    }
-    .btn:hover { opacity: 0.88; transform: translateY(-1px); }
-    .btn-primary {
-      background: linear-gradient(135deg, #1D4ED8, #3B82F6);
-      color: #fff;
-    }
+    .hero-sub { font-size: clamp(14px, 2vw, 16px); color: var(--muted); max-width: 440px; margin: 0 auto 28px; line-height: 1.6; }
 
-    /* ── Glass card ── */
+    /* ── GLASS ── */
     .glass {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      overflow: hidden;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 20px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     }
 
-    /* ── Airport selector ── */
-    .airport-selector-section { margin-bottom: 32px; }
-    .airport-selector-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+    /* ── CONTROL BAR ── */
+    .control-bar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 18px; margin-bottom: 24px; border-radius: 16px;
     }
-    .airport-selector-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      letter-spacing: 0.5px;
-      white-space: nowrap;
+    .ctrl-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .ctrl-divider { width: 1px; height: 28px; background: var(--border); }
+    .location-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.25);
+      color: var(--safe); padding: 8px 14px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .location-btn:hover { background: rgba(34,211,238,0.14); border-color: rgba(34,211,238,0.4); }
+    .location-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .location-badge {
+      display: none; align-items: center; gap: 5px; font-size: 11px;
+      font-weight: 600; color: var(--safe); white-space: nowrap;
+    }
+    .location-badge.visible { display: inline-flex; }
+
+    /* ── INPUTS ── */
+    select, input[type="text"], input[type="time"], input[type="number"] {
+      appearance: none; -webkit-appearance: none;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 14px; font-weight: 500;
+      padding: 10px 14px; transition: border-color 0.2s;
     }
     select {
-      appearance: none;
-      -webkit-appearance: none;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 600;
-      padding: 12px 44px 12px 16px;
-      cursor: pointer;
+      padding-right: 36px;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23607090' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      min-width: 260px;
-      transition: border-color 0.2s;
+      background-repeat: no-repeat; background-position: right 12px center;
     }
-    select:focus {
-      outline: none;
-      border-color: rgba(59,130,246,0.5);
-    }
-    select option { background: #0E1422; color: var(--text); }
+    select option { background: #0E1422; }
+    select:focus, input:focus { outline: none; border-color: rgba(59,130,246,0.5); }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 
-    /* ── Live wait times ── */
-    .live-section { margin-bottom: 48px; }
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
+    .flight-wrap { position: relative; flex: 1; min-width: 170px; }
+    .flight-wrap input { width: 100%; padding-left: 34px; font-family: 'Courier New', monospace; letter-spacing: 1px; text-transform: uppercase; }
+    .flight-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+    .analyze-btn {
+      background: linear-gradient(135deg, #1D4ED8, #3B82F6); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
     }
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 2.5px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .live-dot {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--safe);
-      font-weight: 600;
-    }
-    .live-dot::before {
-      content: '';
-      display: block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--safe);
-      animation: pulse 2s ease-in-out infinite;
-    }
+    .analyze-btn:hover { opacity: 0.85; }
+    .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .terminals-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
+    /* Airport hover badge */
+    .iata-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700;
+      color: var(--accent); cursor: help; position: relative;
     }
-    .terminal-card {
-      padding: 20px 22px;
-      border-radius: 18px;
-      cursor: pointer;
-      transition: border-color 0.2s, transform 0.15s;
-      position: relative;
+    .iata-tooltip {
+      display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%); background: #0D1525; border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 14px; font-size: 12px; white-space: nowrap;
+      z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    .terminal-card:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.2); }
-    .terminal-card.selected { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.06); }
-    .terminal-card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
+    .iata-badge:hover .iata-tooltip { display: block; }
+    .tooltip-name { font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .tooltip-detail { color: var(--muted); line-height: 1.5; }
+
+    /* ── SECTION HEADER ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); }
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700; color: var(--safe);
+      background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);
+      border-radius: 999px; padding: 3px 10px;
     }
-    .terminal-name {
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 1.3;
+    .live-pill::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--safe); animation: pulse 2s ease-in-out infinite; }
+    .premium-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700; color: var(--premium);
+      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 999px; padding: 3px 10px; cursor: pointer; transition: background 0.2s;
     }
-    .precheck-tag {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--safe);
-      background: rgba(34,211,238,0.12);
-      border: 1px solid rgba(34,211,238,0.30);
-      border-radius: 6px;
-      padding: 3px 7px;
-      white-space: nowrap;
-      margin-top: 1px;
+    .premium-pill:hover { background: rgba(245,158,11,0.14); }
+
+    /* ── DELAY ALERT ── */
+    .delay-alerts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .delay-alert {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 600;
     }
-    .wait-display {
-      display: flex;
-      align-items: baseline;
-      gap: 5px;
-    }
-    .wait-number {
-      font-family: 'Courier New', monospace;
-      font-size: 36px;
-      font-weight: 700;
-      line-height: 1;
-    }
-    .wait-unit {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-    .wait-sublabel {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
+    .delay-alert.GREEN  { background: rgba(34,211,238,0.07);  border: 1px solid rgba(34,211,238,0.2);  color: var(--safe); }
+    .delay-alert.YELLOW { background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.2);  color: var(--soon); }
+    .delay-alert.RED    { background: rgba(239,68,68,0.08);   border: 1px solid rgba(239,68,68,0.2);   color: var(--critical); }
+    .delay-alert-icon { font-size: 15px; }
+    .delay-alert-body { flex: 1; }
+    .delay-alert-type { font-weight: 700; }
+    .delay-alert-detail { font-size: 11px; font-weight: 500; opacity: 0.8; margin-top: 1px; }
+    .delay-source { font-size: 10px; color: var(--muted); font-weight: 400; margin-left: auto; }
+
+    /* ── WAIT TIMES GRID ── */
+    .wait-section { margin-bottom: 28px; }
+    .terminals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 10px; }
+    .terminal-card { padding: 17px 18px; border-radius: 16px; cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+    .terminal-card:hover { transform: translateY(-1px); border-color: var(--border-h); }
+    .terminal-card.selected { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.05); }
+    .terminal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; }
+    .terminal-name { font-size: 13px; font-weight: 700; line-height: 1.3; }
+    .precheck-tag { font-size: 9px; font-weight: 700; color: var(--safe); background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.25); border-radius: 5px; padding: 2px 6px; white-space: nowrap; }
+    .wait-row { display: flex; align-items: flex-end; gap: 14px; }
+    .wait-col { display: flex; flex-direction: column; }
+    .wait-col-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+    .wait-col-label.ai-label { color: var(--ai); opacity: 0.85; }
+    .wait-display { display: flex; align-items: baseline; gap: 3px; }
+    .wait-number { font-family: 'Courier New', monospace; font-size: 28px; font-weight: 700; line-height: 1; }
+    .wait-number.sm { font-size: 20px; opacity: 0.80; }
+    .wait-unit { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .wait-divider { width: 1px; background: var(--border); height: 28px; }
+    .wait-sublabel { font-size: 11px; color: var(--muted); margin-top: 3px; }
     .color-safe     { color: var(--safe); }
     .color-soon     { color: var(--soon); }
     .color-urgent   { color: var(--urgent); }
     .color-critical { color: var(--critical); }
+    .color-muted    { color: var(--muted); }
 
-    /* skeleton / loading */
-    .skeleton {
-      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: 8px;
-    }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    .skeleton-number { height: 36px; width: 60px; }
-    .skeleton-text   { height: 14px; width: 140px; }
-    .skeleton-text-sm { height: 12px; width: 90px; margin-top: 6px; }
+    /* skeleton */
+    .skeleton { background: linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.04) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .sk-num { height:28px; width:52px; }
+    .sk-txt { height:13px; width:130px; }
+    .sk-txt-sm { height:11px; width:80px; margin-top:5px; }
+    .empty-state { grid-column:1/-1; text-align:center; padding:40px; color:var(--muted); font-size:14px; }
+    .error-state  { grid-column:1/-1; text-align:center; padding:28px; color:var(--urgent); font-size:13px; }
+    .departures-badge { font-size:11px; font-weight:600; color:var(--muted); background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:8px; padding:4px 10px; }
 
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--muted);
-      font-size: 15px;
-    }
-    .error-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 32px 24px;
-      color: var(--urgent);
-      font-size: 14px;
-    }
+    /* ── GATE ZERO WIDGET ── */
+    .gate-zero { margin-bottom: 28px; }
+    .gate-zero-card { padding: 26px 28px; }
+    .gz-title { font-size: 21px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 5px; }
+    .gz-title span { color: var(--accent); }
+    .gz-sub { font-size: 13px; color: var(--muted); margin-bottom: 22px; line-height: 1.55; }
+    .gz-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 13px; margin-bottom: 18px; }
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .field-group input, .field-group select { width: 100%; }
 
-    /* ── Leave-by calculator ── */
-    .calculator-section { margin-bottom: 64px; }
-    .calculator-card { padding: 28px 32px; }
-    .calculator-title {
-      font-size: 17px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .calculator-sub {
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-    .calc-fields {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .field-group { display: flex; flex-direction: column; gap: 6px; }
-    .field-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    input[type="time"],
-    input[type="number"],
-    .calc-select {
-      appearance: none;
-      -webkit-appearance: none;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 500;
-      padding: 11px 14px;
-      width: 100%;
-      transition: border-color 0.2s;
-    }
-    input[type="time"]:focus,
-    input[type="number"]:focus,
-    .calc-select:focus { outline: none; border-color: rgba(59,130,246,0.5); }
-    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+    /* AI Panel */
+    .ai-panel { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2); border-radius: 14px; padding: 15px 18px; margin-bottom: 16px; display: none; }
+    .ai-panel.visible { display: block; }
+    .ai-panel-head { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+    .ai-panel-title { font-size: 13px; font-weight: 700; color: var(--ai); }
+    .ai-badge { margin-left: auto; font-size: 10px; font-weight: 700; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: var(--ai); border-radius: 6px; padding: 2px 8px; letter-spacing: 1px; text-transform: uppercase; }
+    .ai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 11px; }
+    .ai-stat { background: rgba(0,0,0,0.2); border-radius: 9px; padding: 9px 11px; }
+    .ai-stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+    .ai-stat-value { font-size: 14px; font-weight: 700; font-family: 'Courier New', monospace; }
+    .delay-risk { display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+    .delay-risk.low    { background: rgba(34,211,238,0.08);  border: 1px solid rgba(34,211,238,0.2);  color: var(--safe); }
+    .delay-risk.medium { background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.2);  color: var(--soon); }
+    .delay-risk.high   { background: rgba(239,68,68,0.08);   border: 1px solid rgba(239,68,68,0.2);   color: var(--critical); }
+    .ai-note { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .ai-loading { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); padding: 4px 0; }
+    .spinner { width:15px; height:15px; border:2px solid rgba(139,92,246,.2); border-top-color: var(--ai); border-radius:50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .calc-result {
-      background: rgba(34,211,238,0.06);
-      border: 1px solid rgba(34,211,238,0.20);
-      border-radius: 16px;
-      padding: 20px 24px;
-      display: none;
-    }
+    /* Connecting legs */
+    .legs-panel { background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.18); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; display: none; }
+    .legs-panel.visible { display: block; }
+    .legs-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .leg { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .leg:last-child { border-bottom: none; }
+    .leg-num { font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent); min-width: 60px; font-size: 12px; }
+    .leg-route { color: var(--muted); font-size: 12px; }
+    .leg-status { margin-left: auto; font-size: 11px; font-weight: 600; }
+
+    /* Result */
+    .calc-result { background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.18); border-radius: 14px; padding: 16px 20px; display: none; }
     .calc-result.visible { display: block; }
-    .result-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--safe);
-      margin-bottom: 6px;
-    }
-    .result-time {
-      font-family: 'Courier New', monospace;
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--safe);
-      margin-bottom: 10px;
-    }
-    .result-time.color-soon { color: var(--soon); border-color: rgba(251,191,36,0.20); }
-    .result-time.color-urgent { color: var(--urgent); }
+    .result-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 9px; }
+    .result-lbl { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+    .result-time { font-family: 'Courier New', monospace; font-size: 34px; font-weight: 700; color: var(--safe); line-height: 1; }
+    .result-time.color-soon     { color: var(--soon); }
+    .result-time.color-urgent   { color: var(--urgent); }
     .result-time.color-critical { color: var(--critical); }
-    .result-breakdown {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .pill {
-      font-size: 12px;
-      color: var(--muted);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px 10px;
-    }
-    .result-note {
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-    }
+    .result-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .pill { font-size: 11px; color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 7px; padding: 3px 9px; }
+    .result-note { font-size: 13px; color: var(--muted); }
     .result-note strong { color: var(--text); }
-    .no-flight-msg {
-      font-size: 14px;
-      color: var(--muted);
-      text-align: center;
-      padding: 12px 0;
-      display: none;
+    .no-flight-msg { font-size: 13px; color: var(--muted); padding: 6px 0; display: none; }
+
+    /* Uber CTA */
+    .uber-cta { display: none; align-items: center; gap: 12px; margin-top: 13px; padding: 13px 16px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: border-color 0.2s; }
+    .uber-cta.visible { display: flex; }
+    .uber-cta:hover { border-color: var(--border-h); }
+    .uber-logo { font-size: 20px; }
+    .uber-text { flex: 1; }
+    .uber-hl { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .uber-sub { font-size: 11px; color: var(--muted); }
+    .uber-code { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; background: rgba(255,255,255,.08); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; white-space: nowrap; }
+    .uber-btn { background: #fff; color: #000; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+    /* ── MAP ── */
+    .map-section { margin-bottom: 44px; }
+    .map-wrap { overflow: hidden; flex: 1; }
+    #airport-map { height: 560px; }
+
+    /* Route info strip */
+    .route-strip {
+      display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 13px 18px; margin-top: 10px;
+      background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.18);
+      border-radius: 14px;
+    }
+    .route-strip.visible { display: flex; }
+    .route-stat { display: flex; flex-direction: column; gap: 2px; }
+    .route-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .route-stat-value { font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; color: var(--safe); }
+    .route-divider { width: 1px; height: 30px; background: var(--border); }
+    .route-summary { font-size: 12px; color: var(--muted); flex: 1; line-height: 1.5; }
+    .route-autofill-note { font-size: 11px; color: var(--ai); font-weight: 600; }
+
+    /* ── FEATURES ── */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 13px; margin-bottom: 52px; }
+    .feature-card { padding: 22px; }
+    .feature-icon { font-size: 22px; margin-bottom: 10px; display: block; }
+    .feature-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feature-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .feature-premium { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--premium); }
+
+    /* ── AIRLINE FILTER BAR ── */
+    .airline-filter-bar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 10px 14px; margin-bottom: 10px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 13px;
+    }
+    .af-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .af-select-wrap { position: relative; }
+    .af-select-wrap select { min-width: 220px; padding: 8px 34px 8px 12px; font-size: 13px; }
+    .af-hint { font-size: 11px; color: var(--muted); }
+
+    /* ── MAP CONTAINER (flex row) ── */
+    .map-container {
+      display: flex; gap: 12px; align-items: stretch;
+      border-radius: 20px; overflow: hidden;
+      border: 1px solid var(--border);
     }
 
-    /* ── Feature grid ── */
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-      margin: 0 0 72px;
+    /* ── PLANE DETAIL PANEL ── */
+    .plane-panel {
+      display: flex; flex-direction: column;
+      width: 0; min-width: 0; overflow: hidden;
+      border-radius: 0; border: none;
+      border-right: 1px solid var(--border);
+      transition: width 0.35s cubic-bezier(0.4,0,0.2,1),
+                  min-width 0.35s cubic-bezier(0.4,0,0.2,1),
+                  opacity 0.3s ease;
+      opacity: 0; position: relative; flex-shrink: 0;
+      background: rgba(10,15,28,0.96);
     }
-    .feature-card { padding: 28px; }
-    .feature-icon { font-size: 28px; margin-bottom: 14px; display: block; }
-    .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-    .feature-desc { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .plane-panel.open {
+      width: 290px; min-width: 290px; opacity: 1;
+    }
+    .panel-close-btn {
+      position: absolute; top: 12px; right: 12px; z-index: 10;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+      color: var(--muted); font-size: 12px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: background 0.2s;
+    }
+    .panel-close-btn:hover { background: rgba(255,255,255,0.14); color: var(--text); }
+    #planePanelContent { padding: 20px 18px; min-width: 290px; flex: 1; overflow-y: auto; }
 
-    /* ── Footer ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 28px 0;
-      text-align: center;
+    /* ── PANEL MINI MAP ── */
+    #panelMiniMap {
+      width: 290px; min-width: 290px; height: 170px; flex-shrink: 0;
+      border-top: 1px solid var(--border); position: relative;
+      background: #07101f; overflow: hidden;
     }
-    footer p { font-size: 13px; color: var(--muted); }
+    /* Inner canvas extends below container to clip Google attribution footer */
+    #panelMiniMapCanvas {
+      position: absolute; top: 0; left: 0; right: 0; bottom: -22px;
+    }
+    .panel-minimap-label {
+      position: absolute; top: 8px; left: 10px; z-index: 10; pointer-events: none;
+      font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: rgba(148,163,184,0.65);
+      background: rgba(7,16,31,0.80); padding: 2px 7px; border-radius: 5px;
+    }
+    .pp-airline-row { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .pp-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .pp-airline-name { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .pp-callsign { font-family: 'Courier New', monospace; font-size: 26px; font-weight: 800; letter-spacing: 1px; color: var(--text); margin-bottom: 4px; }
+    .pp-route { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 13px; }
+    .pp-iata { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 800; color: var(--accent); }
+    .pp-arrow { color: var(--muted); font-size: 14px; }
+    .pp-city { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .pp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .pp-stat { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 12px; }
+    .pp-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .pp-stat-value { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; }
+    .pp-progress-wrap { margin-bottom: 14px; }
+    .pp-progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 5px; }
+    .pp-progress-bar { height: 4px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+    .pp-progress-fill { height: 100%; border-radius: 99px; transition: width 1s ease; }
+    .pp-phase { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 7px; margin-bottom: 14px; }
+    .pp-phase.climb   { background: rgba(34,211,238,0.08);  color: var(--safe);     border: 1px solid rgba(34,211,238,0.2); }
+    .pp-phase.cruise  { background: rgba(59,130,246,0.08);  color: var(--accent);   border: 1px solid rgba(59,130,246,0.2); }
+    .pp-phase.descent { background: rgba(251,191,36,0.08);  color: var(--soon);     border: 1px solid rgba(251,191,36,0.2); }
+
+    /* Remove old border from map-wrap since container now has it */
+    #mapWrap { flex: 1; min-width: 0; border-radius: 0; overflow: hidden; transition: flex 0.35s ease; border: none; }
+    #mapWrap .map-wrap { border-radius: 0; border: none; }
+
+    /* ── AIRLINE LEGEND ── */
+    .airline-legend {
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      padding: 11px 16px; margin-top: 8px;
+      font-size: 11px; min-height: 0;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .legend-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .legend-name { color: var(--muted); font-weight: 600; }
+
+    /* ── INBOUND TRACKER ── */
+    .inbound-card { padding: 22px 24px; }
+    .inbound-status-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .inbound-indicator {
+      width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; font-size: 22px; flex-shrink: 0;
+    }
+    .inbound-indicator.airborne  { background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.25); }
+    .inbound-indicator.ground    { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.25); }
+    .inbound-indicator.delayed   { background: rgba(239,68,68,0.10);  border: 1px solid rgba(239,68,68,0.25); }
+    .inbound-indicator.landed    { background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.25); }
+    .inbound-main { flex: 1; min-width: 200px; }
+    .inbound-headline { font-size: 16px; font-weight: 800; margin-bottom: 3px; }
+    .inbound-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .inbound-advice {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 700;
+    }
+    .inbound-advice.go     { background: rgba(34,211,238,0.07);  border: 1px solid rgba(34,211,238,0.2);  color: var(--safe); }
+    .inbound-advice.wait   { background: rgba(251,191,36,0.07);  border: 1px solid rgba(251,191,36,0.2);  color: var(--soon); }
+    .inbound-advice.alert  { background: rgba(239,68,68,0.07);   border: 1px solid rgba(239,68,68,0.2);   color: var(--critical); }
+    .inbound-stats { display: flex; gap: 18px; margin-top: 13px; flex-wrap: wrap; }
+    .inbound-stat { display: flex; flex-direction: column; gap: 2px; }
+    .inbound-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .inbound-stat-value { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; }
+    .inbound-progress-wrap { margin-top: 14px; }
+    .inbound-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .inbound-progress-bar { height: 5px; background: rgba(255,255,255,.07); border-radius: 99px; overflow: hidden; }
+    .inbound-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--safe)); border-radius: 99px; transition: width 0.6s ease; }
+
+    /* ── FLIGHT BOARD ── */
+    .board-wrap { overflow: hidden; }
+    .board-tab {
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--muted); padding: 6px 14px; border-radius: 9px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .board-tab.active { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: var(--accent); }
+    .board-mock-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--soon); background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 7px; padding: 3px 9px;
+    }
+    .board-loading { display: flex; align-items: center; gap: 10px; padding: 32px; justify-content: center; color: var(--muted); font-size: 13px; }
+    .board-empty { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+    .board-header-row {
+      display: grid; grid-template-columns: 90px 1fr 1fr 90px 60px 100px;
+      padding: 9px 18px; border-bottom: 1px solid var(--border);
+      font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+    }
+    .board-row {
+      display: grid; grid-template-columns: 90px 1fr 1fr 90px 60px 100px;
+      padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.04);
+      font-size: 13px; align-items: center; transition: background 0.15s; cursor: default;
+    }
+    .board-row:last-child { border-bottom: none; }
+    .board-row:hover { background: rgba(255,255,255,.02); }
+    .board-row.highlight { background: rgba(59,130,246,0.06); }
+    .bh, .board-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bf-num { font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent); font-size: 13px; }
+    .bf-airline { color: var(--muted); font-size: 12px; }
+    .bf-city { font-size: 13px; }
+    .bf-city-iata { font-family: 'Courier New', monospace; font-size: 10px; color: var(--muted); }
+    .bf-time { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; }
+    .bf-time.delayed { color: var(--urgent); }
+    .bf-gate { font-family: 'Courier New', monospace; font-size: 12px; color: var(--muted); }
+    .bf-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 7px; text-align: center; display: inline-block; }
+    .bf-status.scheduled { background: rgba(255,255,255,.05);    color: var(--muted); }
+    .bf-status.active    { background: rgba(34,211,238,0.10);    color: var(--safe);     border: 1px solid rgba(34,211,238,0.2); }
+    .bf-status.landed    { background: rgba(59,130,246,0.10);    color: var(--accent);   border: 1px solid rgba(59,130,246,0.2); }
+    .bf-status.delayed   { background: rgba(239,68,68,0.10);     color: var(--critical); border: 1px solid rgba(239,68,68,0.2); }
+    .bf-status.cancelled { background: rgba(239,68,68,0.15);     color: var(--critical); border: 1px solid rgba(239,68,68,0.3); }
+    @media (max-width: 620px) {
+      .board-header-row, .board-row { grid-template-columns: 80px 1fr 80px 70px; }
+      .bh.airline, .bf-airline, .bh.gate, .bf-gate { display: none; }
+    }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--border); padding: 24px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    footer p { font-size: 12px; color: var(--muted); }
+    .footer-links { display: flex; gap: 16px; }
+    .footer-link { font-size: 12px; color: var(--muted); text-decoration: none; }
+    .footer-link:hover { color: var(--text); }
+
+    /* ── PREMIUM MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-card {
+      background: linear-gradient(160deg, #0E1422 0%, #0A0F1E 100%);
+      border: 1px solid rgba(245,158,11,0.35); border-radius: 24px;
+      padding: 36px 32px; max-width: 440px; width: 100%; position: relative;
+      transform: translateY(20px) scale(0.97); transition: transform 0.25s;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+    .modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+    .modal-close {
+      position: absolute; top: 16px; right: 18px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      color: var(--muted); width: 30px; height: 30px; border-radius: 50%;
+      font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,.12); color: var(--text); }
+    .modal-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: linear-gradient(135deg, rgba(146,64,14,0.3), rgba(245,158,11,0.2));
+      border: 1px solid rgba(245,158,11,0.4);
+      border-radius: 999px; padding: 4px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--premium); margin-bottom: 16px;
+    }
+    .modal-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .modal-title span { color: var(--premium); }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+    .modal-features { display: flex; flex-direction: column; gap: 9px; margin-bottom: 26px; }
+    .modal-feature {
+      display: flex; align-items: center; gap: 11px;
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 15px; font-size: 13px; font-weight: 600;
+    }
+    .modal-feature-icon { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
+    .modal-feature-desc { font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+    .modal-cta {
+      width: 100%; background: linear-gradient(135deg, #92400E, #F59E0B);
+      color: #fff; border: none; padding: 14px; border-radius: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px;
+      transition: opacity 0.2s; margin-bottom: 10px;
+    }
+    .modal-cta:hover { opacity: 0.88; }
+    .modal-note { text-align: center; font-size: 11px; color: var(--muted); }
+
+    /* ── AI PANEL LOCK GATE ── */
+    .ai-panel-locked {
+      position: relative; overflow: hidden;
+    }
+    .ai-panel-locked .ai-panel-blur {
+      filter: blur(5px); pointer-events: none; user-select: none; opacity: 0.55;
+    }
+    .ai-lock-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      background: rgba(8,12,20,0.6); border-radius: 14px; z-index: 10;
+    }
+    .ai-lock-icon { font-size: 26px; }
+    .ai-lock-msg { font-size: 13px; font-weight: 700; color: var(--text); text-align: center; }
+    .ai-lock-sub { font-size: 11px; color: var(--muted); text-align: center; margin-top: -4px; }
+    .ai-lock-btn {
+      background: linear-gradient(135deg, #92400E, #F59E0B);
+      color: #fff; border: none; padding: 8px 20px;
+      border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+      margin-top: 4px; transition: opacity 0.2s;
+    }
+    .ai-lock-btn:hover { opacity: 0.88; }
+
+    /* ── MODAL CODE INPUT ── */
+    .modal-code-wrap { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 4px; }
+    .modal-code-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .modal-code-row { display: flex; gap: 8px; }
+    .modal-code-input {
+      flex: 1; background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      border-radius: 11px; color: var(--text); font-size: 15px; font-weight: 600;
+      padding: 11px 15px; letter-spacing: 3px; text-align: center;
+      font-family: 'Courier New', monospace; transition: border-color 0.2s;
+    }
+    .modal-code-input:focus { outline: none; border-color: rgba(59,130,246,0.5); }
+    .modal-code-input.error { border-color: var(--critical) !important; }
+    .modal-code-input.success { border-color: var(--safe) !important; }
+    .modal-code-btn {
+      background: linear-gradient(135deg, #1D4ED8, #3B82F6); color: #fff;
+      border: none; padding: 11px 22px; border-radius: 11px;
+      font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+    .modal-code-btn:hover { opacity: 0.85; }
+    .modal-code-error { font-size: 12px; color: var(--critical); margin-top: 7px; min-height: 16px; font-weight: 600; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(16px);
+      background: rgba(8,15,28,0.96); border: 1px solid rgba(34,211,238,0.3);
+      color: var(--text); padding: 13px 24px; border-radius: 14px;
+      font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s; z-index: 3000; white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── PREMIUM ACTIVE state ── */
+    .btn-premium.active {
+      background: linear-gradient(135deg, #065f46, #059669) !important;
+      cursor: default;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 620px) {
+      .control-bar { flex-direction: column; align-items: stretch; }
+      .ctrl-divider { display: none; }
+      .gz-fields { grid-template-columns: 1fr 1fr; }
+      footer { flex-direction: column; text-align: center; }
+      .uber-cta { flex-wrap: wrap; }
+    }
+
+    /* ── GOOGLE MAPS INFOWINDOW OVERRIDES ── */
+    .gm-style .gm-style-iw-c {
+      background: #07101f !important;
+      border-radius: 14px !important;
+      padding: 0 !important;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08) !important;
+      max-width: none !important;
+    }
+    .gm-style .gm-style-iw-d { overflow: hidden !important; max-height: none !important; }
+    /* Tail arrow colour */
+    .gm-style .gm-style-iw-t::after {
+      background: linear-gradient(45deg, #07101f 50%, transparent 51%) !important;
+      box-shadow: -2px 2px 4px rgba(0,0,0,0.5) !important;
+    }
+    /* Hide default Google close button */
+    .gm-ui-hover-effect, .gm-style .gm-style-iw-ch { display: none !important; }
+
+    /* ── PLANE QUICK-VIEW POPUP ── */
+    .plane-popup { min-width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .plane-popup-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .plane-popup-expand {
+      background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.28);
+      color: #60a5fa; width: 24px; height: 24px; border-radius: 6px;
+      font-size: 13px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: background 0.18s; line-height: 1;
+    }
+    .plane-popup-expand:hover { background: rgba(59,130,246,0.24); color: #93c5fd; }
+    .plane-popup-callsign {
+      flex: 1; font-family: 'Courier New', monospace; font-size: 17px;
+      font-weight: 800; color: #f0f4ff; letter-spacing: 0.5px;
+    }
+    .plane-popup-close {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
+      color: rgba(180,195,230,0.5); width: 22px; height: 22px; border-radius: 50%;
+      font-size: 14px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: background 0.18s, color 0.18s;
+      line-height: 1;
+    }
+    .plane-popup-close:hover { background: rgba(255,255,255,0.13); color: #f0f4ff; }
+    .plane-popup-airline {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 12px 6px; font-size: 11px;
+      color: rgba(180,195,230,0.5); font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .plane-popup-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .plane-popup-body { padding: 6px 12px 10px; }
+    .plane-popup-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 3.5px 0; font-size: 12px;
+    }
+    .plane-popup-row .pp-lbl { color: rgba(148,163,184,0.65); }
+    .plane-popup-row .pp-val { color: #e2e8f0; font-weight: 600; font-family: 'Courier New', monospace; font-size: 12px; }
+    .plane-popup-progress { padding: 4px 12px 10px; }
+    .plane-popup-progress-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+    .plane-popup-progress-fill  { height: 100%; border-radius: 99px; }
+    .plane-popup-progress-label { display: flex; justify-content: space-between; font-size: 9px; color: rgba(148,163,184,0.5); margin-bottom: 4px; }
+
+    /* ── AIRPORT ROUTE PICKER ── */
+    .airport-route-picker {
+      display: none; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 11px 14px; margin-top: 8px;
+      background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 13px;
+    }
+    .airport-route-picker.visible { display: flex; }
+    .arp-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+    .arp-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 7px 14px; border-radius: 9px; cursor: pointer;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      font-size: 12px; font-weight: 700; color: var(--muted); transition: all 0.18s;
+    }
+    .arp-btn span { font-family: 'Courier New', monospace; font-size: 14px; color: var(--accent); }
+    .arp-btn:hover, .arp-btn.active { background: rgba(59,130,246,0.12);
+      border-color: rgba(59,130,246,0.35); color: var(--text); }
+
+    /* ── APPLE MAPS BUTTON ── */
+    .apple-maps-btn {
+      display: none; align-items: center; gap: 8px;
+      padding: 9px 16px; border-radius: 10px; cursor: pointer;
+      background: rgba(0,122,255,0.10); border: 1px solid rgba(0,122,255,0.30);
+      color: #4da3ff; font-size: 13px; font-weight: 700;
+      white-space: nowrap; transition: background 0.2s; flex-shrink: 0;
+    }
+    .apple-maps-btn.visible { display: flex; }
+    .apple-maps-btn:hover { background: rgba(0,122,255,0.18); }
   </style>
 </head>
 <body>
-  <div class="container">
+<div class="container">
 
-    <!-- Nav -->
-    <nav>
-      <span class="wordmark">SwiftClear</span>
-      <div class="nav-right">
-        <span class="last-updated" id="lastUpdated"></span>
-        <button class="refresh-btn" onclick="loadTerminals()">Refresh</button>
-      </div>
-    </nav>
+  <!-- Nav -->
+  <nav>
+    <span class="wordmark">SwiftClear</span>
+    <div class="nav-right">
+      <span class="last-updated" id="lastUpdated"></span>
+      <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
+      <button class="btn-premium" onclick="showPremiumModal()">⚡ Premium</button>
+    </div>
+  </nav>
 
-    <!-- Hero -->
-    <section class="hero">
-      <div class="badge">
-        <span class="badge-dot"></span>
-        Live
-      </div>
-      <h1>Skip the guess.<br /><span>Know the wait.</span></h1>
-      <p class="hero-sub">
-        Real-time TSA wait times for every checkpoint — so you know exactly
-        when to leave and never miss your flight.
-      </p>
-      <div class="cta-row">
-        <a href="#calculator" class="btn btn-primary">
-          Calculate Leave Time
-        </a>
-      </div>
-    </section>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="badge"><span class="badge-dot"></span> AI-Powered TSA Intelligence</div>
+    <h1>Skip the guess.<br /><span>Know the wait.</span></h1>
+    <p class="hero-sub">Real-time TSA wait times, AI delay detection, and a smart departure calculator so you never miss a flight.</p>
+  </section>
 
-    <!-- Airport selector + live wait times -->
-    <section class="live-section">
-      <div class="section-header">
-        <div class="airport-selector-wrap">
-          <span class="airport-selector-label">Airport</span>
-          <select id="airportSelect" onchange="onAirportChange()">
-            <option value="ATL">Atlanta (ATL)</option>
-            <option value="LAX">Los Angeles (LAX)</option>
-            <option value="ORD">Chicago O'Hare (ORD)</option>
-            <option value="DFW">Dallas Fort Worth (DFW)</option>
-            <option value="DEN">Denver (DEN)</option>
-            <option value="JFK">New York JFK (JFK)</option>
-            <option value="SFO">San Francisco (SFO)</option>
-            <option value="LAS">Las Vegas (LAS)</option>
-            <option value="SEA">Seattle-Tacoma (SEA)</option>
-            <option value="MCO">Orlando (MCO)</option>
-            <option value="MIA">Miami (MIA)</option>
-            <option value="BOS">Boston Logan (BOS)</option>
-            <option value="PHX">Phoenix (PHX)</option>
-            <option value="CLT">Charlotte (CLT)</option>
-            <option value="MSP">Minneapolis (MSP)</option>
+  <!-- Control Bar: Airport + Flight Number -->
+  <div class="glass control-bar">
+    <span class="ctrl-label">Airport</span>
+    <select id="airportSelect" onchange="onAirportChange()" style="min-width:210px;">
+      <!-- populated alphabetically by JS -->
+    </select>
+    <button class="location-btn" id="locationBtn" onclick="detectNearestAirport()">📍 Use My Location</button>
+    <span class="location-badge" id="locationBadge">📍 <span id="locationLabel"></span></span>
+    <div class="ctrl-divider"></div>
+    <span class="ctrl-label">Flight #</span>
+    <div class="flight-wrap">
+      <span class="flight-icon">✈</span>
+      <input type="text" id="flightInput" placeholder="AA123, UA456…"
+             maxlength="8"
+             oninput="this.value=this.value.toUpperCase()"
+             onkeydown="if(event.key==='Enter')lookupFlight()" />
+    </div>
+    <button class="analyze-btn" id="lookupBtn" onclick="lookupFlight()">Analyze Flight</button>
+  </div>
+
+  <!-- 1st widget: TSA Intelligence (live wait times) -->
+  <section class="wait-section">
+    <div class="section-header">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="section-label">TSA Intelligence —&nbsp;
+          <span class="iata-badge" id="airportBadge">
+            <span id="airportBadgeCode">ATL</span>
+            <div class="iata-tooltip">
+              <div class="tooltip-name" id="tooltipName">Loading…</div>
+              <div class="tooltip-detail" id="tooltipDetail"></div>
+            </div>
+          </span>
+        </span>
+        <span class="departures-badge" id="departuresBadge">—</span>
+      </div>
+      <span class="live-pill" id="liveIndicator">Live</span>
+    </div>
+    <!-- FAA delay alerts (FlightAware) -->
+    <div class="delay-alerts" id="delayAlerts"></div>
+
+    <div class="terminals-grid" id="terminalsGrid">
+      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+    </div>
+  </section>
+
+  <!-- 2nd widget: Gate Zero™ (above map) -->
+  <section class="gate-zero" id="gate-zero">
+    <div class="section-header">
+      <span class="section-label">Departure Intelligence</span>
+      <span class="premium-pill" onclick="showPremiumModal()">⚡ Unlock AI Delay Alerts</span>
+    </div>
+    <div class="glass gate-zero-card">
+      <div class="gz-title">Gate Zero™ <span>Departure Calculator</span></div>
+      <p class="gz-sub">Enter your flight and we calculate precisely when to leave — using predicted wait times at your arrival, not just what it is right now.</p>
+
+      <div class="gz-fields">
+        <div class="field-group">
+          <label class="field-label" for="flightTime">Flight Departure</label>
+          <input type="time" id="flightTime" oninput="calculate()" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="driveTime">Drive Time (min)</label>
+          <input type="number" id="driveTime" value="30" min="0" max="300" oninput="calculate()" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="checkpointSelect">TSA Checkpoint</label>
+          <select id="checkpointSelect" onchange="calculate()">
+            <option value="">Select checkpoint…</option>
           </select>
         </div>
-        <span class="live-dot" id="liveIndicator">Live</span>
-      </div>
-
-      <div class="terminals-grid" id="terminalsGrid">
-        <!-- skeleton cards shown while loading -->
-        <div class="glass terminal-card">
-          <div class="terminal-card-top">
-            <div class="skeleton skeleton-text"></div>
-          </div>
-          <div class="skeleton skeleton-number"></div>
-          <div class="skeleton skeleton-text-sm"></div>
-        </div>
-        <div class="glass terminal-card">
-          <div class="terminal-card-top">
-            <div class="skeleton skeleton-text"></div>
-          </div>
-          <div class="skeleton skeleton-number"></div>
-          <div class="skeleton skeleton-text-sm"></div>
-        </div>
-        <div class="glass terminal-card">
-          <div class="terminal-card-top">
-            <div class="skeleton skeleton-text"></div>
-          </div>
-          <div class="skeleton skeleton-number"></div>
-          <div class="skeleton skeleton-text-sm"></div>
+        <div class="field-group">
+          <label class="field-label" for="bufferTime">Safety Buffer (min)</label>
+          <input type="number" id="bufferTime" value="15" min="0" max="90" oninput="calculate()" />
         </div>
       </div>
-    </section>
 
-    <!-- Leave-by calculator -->
-    <section class="calculator-section" id="calculator">
-      <div class="section-header">
-        <span class="section-label">Leave-By Calculator</span>
+      <!-- Connecting flight legs -->
+      <div class="legs-panel" id="legsPanel">
+        <div class="legs-title">✈ Flight Legs</div>
+        <div id="legsList"></div>
       </div>
-      <div class="glass calculator-card">
-        <div class="calculator-title">When should I leave?</div>
-        <p class="calculator-sub">
-          Enter your flight time, pick your checkpoint, and we'll tell you
-          exactly when to head to the airport.
-        </p>
 
-        <div class="calc-fields">
-          <div class="field-group">
-            <label class="field-label" for="flightTime">Flight Departure</label>
-            <input type="time" id="flightTime" oninput="calculate()" />
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="driveTime">Drive to Airport (min)</label>
-            <input type="number" id="driveTime" value="30" min="0" max="240" oninput="calculate()" />
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="checkpointSelect">Checkpoint</label>
-            <select id="checkpointSelect" class="calc-select" onchange="calculate()">
-              <option value="">Select a checkpoint…</option>
-            </select>
-          </div>
+      <!-- AI delay analysis panel -->
+      <div class="ai-panel" id="aiPanel">
+        <div class="ai-panel-head">
+          <span style="font-size:15px;">🤖</span>
+          <span class="ai-panel-title">AI Delay Detection</span>
+          <span class="ai-badge">Live</span>
         </div>
-
-        <p class="no-flight-msg" id="noFlightMsg">Enter your flight departure time above to get your leave-by time.</p>
-
-        <div class="calc-result" id="calcResult">
-          <div class="result-label">Leave By</div>
-          <div class="result-time" id="resultTime">—</div>
-          <div class="result-breakdown" id="resultBreakdown"></div>
-          <p class="result-note" id="resultNote"></p>
+        <div class="ai-loading" id="aiLoading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Tracking inbound aircraft…</span>
+        </div>
+        <div id="aiData" style="display:none;">
+          <div class="ai-grid" id="aiGrid"></div>
+          <div class="delay-risk" id="delayRisk"></div>
+          <p class="ai-note" id="aiNote"></p>
         </div>
       </div>
-    </section>
 
-    <!-- Features -->
-    <div class="features">
-      <div class="glass feature-card">
-        <span class="feature-icon">⚡</span>
-        <div class="feature-title">Always Up to Date</div>
-        <p class="feature-desc">
-          Wait times are refreshed continuously from travelers currently
-          inside the checkpoints, so you always have the latest picture
-          before you leave.
-        </p>
+      <!-- Result -->
+      <p class="no-flight-msg" id="noFlightMsg">Enter your departure time above to calculate when to leave.</p>
+      <div class="calc-result" id="calcResult">
+        <div class="result-row">
+          <div>
+            <div class="result-lbl">Leave By</div>
+            <div class="result-time" id="resultTime">—</div>
+          </div>
+          <div style="flex:1;">
+            <div class="result-pills" id="resultPills"></div>
+            <p class="result-note" id="resultNote"></p>
+          </div>
+        </div>
       </div>
-      <div class="glass feature-card">
-        <span class="feature-icon">🎯</span>
-        <div class="feature-title">Leave at the Right Time</div>
-        <p class="feature-desc">
-          Tell us your departure time and we calculate exactly when you
-          need to leave your house — no more guessing or padding with
-          an extra hour "just in case."
-        </p>
+
+      <!-- Uber CTA -->
+      <div class="uber-cta" id="uberCta" onclick="openUber()">
+        <span class="uber-logo">🚗</span>
+        <div class="uber-text">
+          <div class="uber-hl">Schedule a ride at the perfect time</div>
+          <div class="uber-sub">Zero wasted time — arrive right when you need to, not an hour early.</div>
+        </div>
+        <span class="uber-code">SWIFTCLEAR</span>
+        <button class="uber-btn" onclick="event.stopPropagation();openUber()">Book Now</button>
       </div>
-      <div class="glass feature-card">
-        <span class="feature-icon">✈️</span>
-        <div class="feature-title">Every Major Airport</div>
-        <p class="feature-desc">
-          Coverage across major US airports with separate wait times for
-          standard screening and TSA PreCheck lanes at every terminal.
-        </p>
+    </div>
+  </section>
+
+  <!-- Airport Map -->
+  <section class="map-section">
+
+    <!-- Header row -->
+    <div class="section-header" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="section-label">Live Air Traffic Map</span>
+        <span class="live-pill" id="trafficCount" style="min-width:90px;">Loading…</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="board-tab active" id="trafficToggleBtn" onclick="toggleLiveTraffic()" style="font-size:11px;">⏹ Hide Traffic</button>
+        <span class="premium-pill" onclick="showPremiumModal()">🔒 Premium — Push Alerts</span>
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer>
-      <p>© 2025 SwiftClear. All rights reserved.</p>
-    </footer>
+    <!-- Airline filter -->
+    <div class="airline-filter-bar" id="airlineFilterBar">
+      <span class="af-label">Filter Airline</span>
+      <div class="af-select-wrap">
+        <select id="airlineFilterSelect" onchange="onAirlineFilter(this.value)">
+          <option value="ALL">All Airlines</option>
+        </select>
+      </div>
+      <span class="af-hint" id="afHint"></span>
+    </div>
 
+    <!-- Map + side panel container -->
+    <div class="map-container" id="mapContainer">
+
+      <!-- Plane detail side panel -->
+      <div class="plane-panel glass" id="planePanel">
+        <button class="panel-close-btn" onclick="closePlanePanel()" title="Close">✕</button>
+        <div id="planePanelContent"></div>
+        <div id="panelMiniMap">
+          <div class="panel-minimap-label">Route</div>
+          <div id="panelMiniMapCanvas"></div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="map-wrap" id="mapWrap">
+        <div id="airport-map"></div>
+      </div>
+
+    </div>
+
+    <!-- Airline legend -->
+    <div class="airline-legend" id="airlineLegend"></div>
+
+    <!-- Multi-airport picker (shown when metro area has multiple airports) -->
+    <div class="airport-route-picker" id="airportRoutePicker">
+      <span class="arp-label">Route to Airport</span>
+      <div id="arpButtons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- Route info (shown after location detected) -->
+    <div class="route-strip" id="routeStrip">
+      <div class="route-stat">
+        <div class="route-stat-label">Drive Time</div>
+        <div class="route-stat-value" id="routeDrive">—</div>
+      </div>
+      <div class="route-divider"></div>
+      <div class="route-stat">
+        <div class="route-stat-label">Distance</div>
+        <div class="route-stat-value" id="routeDist">—</div>
+      </div>
+      <div class="route-divider"></div>
+      <div class="route-summary" id="routeSummary"></div>
+      <span class="route-autofill-note">✓ Drive time auto-filled in calculator</span>
+      <button class="apple-maps-btn" id="appleMapsBtn" onclick="openAppleMaps()">🗺 Open in Apple Maps</button>
+    </div>
+  </section>
+
+  <!-- Inbound Tracker -->
+  <section class="inbound-section" id="inboundSection" style="display:none; margin-bottom:28px;">
+    <div class="section-header">
+      <span class="section-label">Inbound Aircraft Status</span>
+      <span class="live-pill">Tracking</span>
+    </div>
+    <div class="glass inbound-card" id="inboundCard">
+      <!-- filled by renderInboundTracker() -->
+    </div>
+  </section>
+
+  <!-- Flight Board -->
+  <section class="board-section" id="boardSection" style="margin-bottom:44px;">
+    <div class="section-header">
+      <span class="section-label">Live Flight Board — <span id="boardAirportLabel">ATL</span></span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="board-mock-badge" id="boardMockBadge" style="display:none;">Demo Data</span>
+        <button class="board-tab active" id="tabDep" onclick="switchTab('dep')">Departures</button>
+        <button class="board-tab" id="tabArr" onclick="switchTab('arr')">Arrivals</button>
+      </div>
+    </div>
+    <div class="glass board-wrap">
+      <div id="boardLoading" class="board-loading">
+        <div class="spinner" style="width:18px;height:18px;border-color:rgba(255,255,255,.1);border-top-color:var(--accent);"></div>
+        <span>Loading flight board…</span>
+      </div>
+      <div id="boardTable" style="display:none;">
+        <div class="board-header-row">
+          <span class="bh flight">Flight</span>
+          <span class="bh airline">Airline</span>
+          <span class="bh city" id="boardCityHeader">Destination</span>
+          <span class="bh time">Time</span>
+          <span class="bh gate">Gate</span>
+          <span class="bh status">Status</span>
+        </div>
+        <div id="boardRows"></div>
+      </div>
+      <div id="boardEmpty" class="board-empty" style="display:none;">No flights found for this airport.</div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <div class="features">
+    <div class="glass feature-card">
+      <span class="feature-icon">⚡</span>
+      <div class="feature-title">Always Current</div>
+      <p class="feature-desc">Wait times refresh every 60 seconds from live travelers blended with official TSA data for maximum accuracy.</p>
+    </div>
+    <div class="glass feature-card">
+      <span class="feature-icon">🤖</span>
+      <div class="feature-title">AI Delay Detection</div>
+      <p class="feature-desc">Track your inbound aircraft in real time. If your plane hasn't left its origin airport, we predict the delay before the airline announces it.</p>
+      <span class="feature-premium">⚡ Premium</span>
+    </div>
+    <div class="glass feature-card">
+      <span class="feature-icon">🎯</span>
+      <div class="feature-title">Gate Zero™</div>
+      <p class="feature-desc">Calculates exactly when to leave using predicted wait at your arrival time — not the current wait that may change before you get there.</p>
+    </div>
+    <div class="glass feature-card">
+      <span class="feature-icon">🗺️</span>
+      <div class="feature-title">Live Air Traffic</div>
+      <p class="feature-desc">See every aircraft around your airport with real-time position, altitude, speed, and delay status overlaid on the map.</p>
+      <span class="feature-premium">⚡ Premium</span>
+    </div>
+    <div class="glass feature-card">
+      <span class="feature-icon">🔔</span>
+      <div class="feature-title">Push Alerts</div>
+      <p class="feature-desc">Get notified the moment your inbound plane pushes back from the gate — your leave-by time auto-adjusts in real time.</p>
+      <span class="feature-premium">⚡ Premium</span>
+    </div>
+    <div class="glass feature-card">
+      <span class="feature-icon">✈️</span>
+      <div class="feature-title">15 Major Airports</div>
+      <p class="feature-desc">Coverage across all major US airports with separate wait times for standard and PreCheck lanes at every terminal.</p>
+    </div>
   </div>
 
-  <script>
-    // ── State ─────────────────────────────────────────────────
-    let allTerminals = [];    // { id, name, checkpoint_name, is_precheck }
-    let waitTimes    = {};    // terminalId → minutes (number | null)
-    let refreshTimer = null;
+  <footer>
+    <p>© 2025 SwiftClear. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="#" class="footer-link">Privacy</a>
+      <a href="#" class="footer-link">Terms</a>
+      <a href="#" class="footer-link">API</a>
+      <a href="#" class="footer-link">Support</a>
+    </div>
+  </footer>
 
-    // ── Helpers ───────────────────────────────────────────────
-    function colorClass(min) {
-      if (min === null || min === undefined) return '';
-      if (min < 15) return 'color-safe';
-      if (min < 30) return 'color-soon';
-      if (min < 45) return 'color-urgent';
-      return 'color-critical';
+</div>
+
+<!-- Premium Modal -->
+<div class="modal-overlay" id="premiumModal" onclick="closePremiumModalOutside(event)">
+  <div class="modal-card" id="premiumModalCard">
+    <button class="modal-close" onclick="hidePremiumModal()">✕</button>
+    <div class="modal-badge">⚡ SwiftClear Premium</div>
+    <h2 class="modal-title">Unlock <span>Full Intelligence</span></h2>
+    <p class="modal-sub">Get the complete picture before you leave — AI-verified flight status, live air traffic, and push alerts that adjust your departure time automatically.</p>
+    <div class="modal-features">
+      <div class="modal-feature">
+        <span class="modal-feature-icon">🤖</span>
+        <div>
+          <div>Real-time AI Delay Detection</div>
+          <div class="modal-feature-desc">Track your inbound aircraft's speed, altitude &amp; weather. Know about delays before the airline does.</div>
+        </div>
+      </div>
+      <div class="modal-feature">
+        <span class="modal-feature-icon">🔔</span>
+        <div>
+          <div>Push Notifications</div>
+          <div class="modal-feature-desc">Get alerted the moment your plane pushes back — your leave-by time adjusts automatically.</div>
+        </div>
+      </div>
+      <div class="modal-feature">
+        <span class="modal-feature-icon">🗺️</span>
+        <div>
+          <div>Live Air Traffic Map</div>
+          <div class="modal-feature-desc">See every aircraft around your airport with real-time position, altitude, and delay status.</div>
+        </div>
+      </div>
+      <div class="modal-feature">
+        <span class="modal-feature-icon">✈️</span>
+        <div>
+          <div>Connecting Flight Leg Tracking</div>
+          <div class="modal-feature-desc">Full multi-leg itinerary visibility with status for each segment of your journey.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-code-wrap">
+      <div class="modal-code-label">Have an access code?</div>
+      <div class="modal-code-row">
+        <input type="text" id="accessCodeInput" class="modal-code-input"
+               placeholder="Enter code…" maxlength="10"
+               oninput="document.getElementById('codeError').textContent='';this.style.borderColor='';"
+               onkeydown="if(event.key==='Enter')submitAccessCode()" />
+        <button class="modal-code-btn" onclick="submitAccessCode()">Unlock</button>
+      </div>
+      <div class="modal-code-error" id="codeError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Google Maps loaded dynamically after fetching key from /api/maps-config
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let allTerminals  = [];
+let waitTimes     = {};
+let refreshTimer  = null;
+let gmap              = null;   // google.maps.Map instance
+let airportMarker     = null;   // google.maps.Marker for airport pin
+let flightMarker      = null;   // google.maps.Marker for tracked plane
+let directionsRenderer = null;  // google.maps.DirectionsRenderer
+let userLocation      = null;   // { lat, lng } from geolocation
+let currentFlight     = null;
+
+// ════════════════════════════════════════════════════════════════
+// AIRPORTS — alphabetical by city name
+// ════════════════════════════════════════════════════════════════
+const AIRPORTS = [
+  // ── Original 15 ──────────────────────────────────────────────
+  { iata:'ATL', name:'Hartsfield-Jackson Atlanta International', city:'Atlanta, GA',        lat:33.6407,  lon:-84.4277,  daily:900 },
+  { iata:'BOS', name:'Boston Logan International',               city:'Boston, MA',         lat:42.3656,  lon:-71.0096,  daily:380 },
+  { iata:'CLT', name:'Charlotte Douglas International',          city:'Charlotte, NC',      lat:35.2271,  lon:-80.9431,  daily:540 },
+  { iata:'ORD', name:"Chicago O'Hare International",             city:'Chicago, IL',        lat:41.9742,  lon:-87.9073,  daily:900 },
+  { iata:'DFW', name:'Dallas Fort Worth International',          city:'Dallas, TX',         lat:32.8998,  lon:-97.0403,  daily:840 },
+  { iata:'DEN', name:'Denver International',                     city:'Denver, CO',         lat:39.8561,  lon:-104.6737, daily:600 },
+  { iata:'LAS', name:'Harry Reid International',                 city:'Las Vegas, NV',      lat:36.0840,  lon:-115.1537, daily:560 },
+  { iata:'LAX', name:'Los Angeles International',                city:'Los Angeles, CA',    lat:33.9425,  lon:-118.4081, daily:700 },
+  { iata:'MIA', name:'Miami International',                      city:'Miami, FL',          lat:25.7959,  lon:-80.2870,  daily:480 },
+  { iata:'MSP', name:'Minneapolis\u2013Saint Paul International',city:'Minneapolis, MN',    lat:44.8848,  lon:-93.2223,  daily:440 },
+  { iata:'JFK', name:'John F. Kennedy International',            city:'New York, NY',       lat:40.6413,  lon:-73.7781,  daily:480 },
+  { iata:'MCO', name:'Orlando International',                    city:'Orlando, FL',        lat:28.4312,  lon:-81.3081,  daily:500 },
+  { iata:'PHX', name:'Phoenix Sky Harbor International',         city:'Phoenix, AZ',        lat:33.4373,  lon:-112.0078, daily:560 },
+  { iata:'SFO', name:'San Francisco International',              city:'San Francisco, CA',  lat:37.6213,  lon:-122.3790, daily:480 },
+  { iata:'SEA', name:'Seattle-Tacoma International',             city:'Seattle, WA',        lat:47.4502,  lon:-122.3088, daily:440 },
+  // ── Expanded 20 ──────────────────────────────────────────────
+  { iata:'AUS', name:'Austin-Bergstrom International',           city:'Austin, TX',         lat:30.1945,  lon:-97.6699,  daily:300 },
+  { iata:'BWI', name:'Baltimore/Washington Intl Thurgood Marshall', city:'Baltimore, MD',   lat:39.1774,  lon:-76.6684,  daily:360 },
+  { iata:'BNA', name:'Nashville International',                  city:'Nashville, TN',      lat:36.1263,  lon:-86.6774,  daily:320 },
+  { iata:'DCA', name:'Ronald Reagan Washington National',        city:'Washington, DC',     lat:38.8512,  lon:-77.0402,  daily:380 },
+  { iata:'DTW', name:'Detroit Metro Wayne County',               city:'Detroit, MI',        lat:42.2162,  lon:-83.3554,  daily:440 },
+  { iata:'EWR', name:'Newark Liberty International',             city:'Newark, NJ',         lat:40.6895,  lon:-74.1745,  daily:500 },
+  { iata:'FLL', name:'Fort Lauderdale-Hollywood International',  city:'Fort Lauderdale, FL',lat:26.0726,  lon:-80.1527,  daily:480 },
+  { iata:'HOU', name:'William P. Hobby Airport',                 city:'Houston, TX',        lat:29.6454,  lon:-95.2789,  daily:300 },
+  { iata:'IAD', name:'Washington Dulles International',          city:'Washington, DC',     lat:38.9531,  lon:-77.4565,  daily:380 },
+  { iata:'IAH', name:'George Bush Intercontinental',             city:'Houston, TX',        lat:29.9902,  lon:-95.3368,  daily:600 },
+  { iata:'LGA', name:'LaGuardia Airport',                        city:'New York, NY',       lat:40.7769,  lon:-73.8740,  daily:380 },
+  { iata:'MCI', name:'Kansas City International',                city:'Kansas City, MO',    lat:39.2976,  lon:-94.7130,  daily:220 },
+  { iata:'MDW', name:'Chicago Midway International',             city:'Chicago, IL',        lat:41.7868,  lon:-87.7522,  daily:420 },
+  { iata:'PDX', name:'Portland International',                   city:'Portland, OR',       lat:45.5898,  lon:-122.5951, daily:300 },
+  { iata:'PHL', name:'Philadelphia International',               city:'Philadelphia, PA',   lat:39.8744,  lon:-75.2424,  daily:420 },
+  { iata:'RDU', name:'Raleigh-Durham International',             city:'Raleigh, NC',        lat:35.8801,  lon:-78.7880,  daily:260 },
+  { iata:'SAN', name:'San Diego International',                  city:'San Diego, CA',      lat:32.7338,  lon:-117.1933, daily:420 },
+  { iata:'SJC', name:'Norman Y. Mineta San Jose International',  city:'San Jose, CA',       lat:37.3626,  lon:-121.9290, daily:220 },
+  { iata:'SLC', name:'Salt Lake City International',             city:'Salt Lake City, UT', lat:40.7899,  lon:-111.9791, daily:380 },
+  { iata:'TPA', name:'Tampa International',                      city:'Tampa, FL',          lat:27.9755,  lon:-82.5332,  daily:380 },
+];
+
+function getAirport(iata) { return AIRPORTS.find(a => a.iata === iata) || AIRPORTS[0]; }
+
+// ── Extra airports for routing only (not in TSA list) ──────────
+const ROUTE_AIRPORTS_EXTRA = [
+  { iata:'DAL', name:'Dallas Love Field',    city:'Dallas, TX',  lat:32.8471, lon:-96.8518 },
+  { iata:'OAK', name:'Oakland International',city:'Oakland, CA', lat:37.7213, lon:-122.2208 },
+];
+const ALL_ROUTE_AIRPORTS = AIRPORTS.concat(ROUTE_AIRPORTS_EXTRA);
+function getRouteAirport(iata) {
+  return ALL_ROUTE_AIRPORTS.find(a => a.iata === iata) || getAirport(iata);
+}
+
+// ── Metro areas with multiple airports ──────────────────────────────
+const METRO_AIRPORTS = [
+  { metro:'Dallas, TX',               airports:['DFW','DAL'],              radiusKm:80  },
+  { metro:'New York area',            airports:['JFK','LGA','EWR'],        radiusKm:80  },
+  { metro:'Chicago, IL',              airports:['ORD','MDW'],              radiusKm:55  },
+  { metro:'Houston, TX',              airports:['IAH','HOU'],              radiusKm:70  },
+  { metro:'Washington DC area',       airports:['DCA','IAD','BWI'],        radiusKm:80  },
+  { metro:'San Francisco Bay Area',   airports:['SFO','OAK','SJC'],        radiusKm:80  },
+  { metro:'Los Angeles area',         airports:['LAX','SAN'],              radiusKm:160 },
+  { metro:'South Florida',            airports:['MIA','FLL'],              radiusKm:60  },
+];
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+function colorClass(min) {
+  if (min == null) return 'color-muted';
+  if (min < 15)   return 'color-safe';
+  if (min < 30)   return 'color-soon';
+  if (min < 45)   return 'color-urgent';
+  return 'color-critical';
+}
+function urgencyLabel(min) {
+  if (min == null) return 'No data';
+  if (min < 15)   return 'Short wait';
+  if (min < 30)   return 'Moderate wait';
+  if (min < 45)   return 'Long wait';
+  return 'Very long wait';
+}
+function fmt12(date) {
+  let h = date.getHours();
+  const m  = String(date.getMinutes()).padStart(2,'0');
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ap}`;
+}
+function minsUntil(d) { return Math.round((d - Date.now()) / 60000); }
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Time-of-day TSA multiplier (based on published TSA patterns)
+function todMult(hour) {
+  if (hour >= 5  && hour < 7)  return 1.30;
+  if (hour >= 7  && hour < 9)  return 1.65;
+  if (hour >= 9  && hour < 11) return 1.25;
+  if (hour >= 11 && hour < 14) return 1.10;
+  if (hour >= 14 && hour < 17) return 1.35;
+  if (hour >= 17 && hour < 20) return 1.55;
+  if (hour >= 20 && hour < 22) return 1.15;
+  return 0.65;
+}
+function predictWait(currentMin, arrivalDate) {
+  if (currentMin == null) return null;
+  const ratio = todMult(arrivalDate.getHours()) / todMult(new Date().getHours());
+  return Math.max(1, Math.round(currentMin * ratio));
+}
+
+// ════════════════════════════════════════════════════════════════
+// DEPARTURES + DELAY ALERTS  (AviationStack + FlightAware)
+// ════════════════════════════════════════════════════════════════
+async function fetchDepartures(iata) {
+  try {
+    const res  = await fetch('/api/departures?airportIata=' + iata);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    // Update departure badge
+    const badge = document.getElementById('departuresBadge');
+    const rem   = data.remaining;
+    if (rem === 0) {
+      badge.textContent = '0 departures remaining';
+      badge.style.color = 'var(--muted)';
+      badge.style.opacity = '0.6';
+    } else {
+      badge.textContent = rem + ' departures remaining today';
+      badge.style.color = '';
+      badge.style.opacity = '';
     }
 
-    function urgencyLabel(min) {
-      if (min === null || min === undefined) return '';
-      if (min < 15) return 'Short wait';
-      if (min < 30) return 'Moderate wait';
-      if (min < 45) return 'Long wait';
-      return 'Very long wait';
+    // Render delay alerts
+    renderDelayAlerts(data.delays || [], data.sources || []);
+  } catch (e) {
+    // Fall back to time-based estimate silently
+    var airport = getAirport(iata);
+    var now = new Date();
+    var hoursLeft = 24 - now.getHours() - now.getMinutes() / 60;
+    var est = Math.max(0, Math.round(airport.daily * Math.min(1, hoursLeft / 18)));
+    var badge = document.getElementById('departuresBadge');
+    if (est === 0) {
+      badge.textContent = '0 departures remaining';
+      badge.style.color = 'var(--muted)';
+      badge.style.opacity = '0.6';
+    } else {
+      badge.textContent = '~' + est + ' departures remaining';
+      badge.style.color = '';
+      badge.style.opacity = '';
     }
+  }
+}
 
-    function formatTime(date) {
-      let h = date.getHours();
-      const m = String(date.getMinutes()).padStart(2, '0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      return `${h}:${m} ${ampm}`;
-    }
+function renderDelayAlerts(delays, sources) {
+  var container = document.getElementById('delayAlerts');
+  if (!delays.length) { container.innerHTML = ''; return; }
 
-    function minutesUntil(targetDate) {
-      return Math.round((targetDate - Date.now()) / 60000);
-    }
+  var icons = { RED: '🚨', YELLOW: '⚠️', GREEN: '✅' };
+  var hasFa = sources.indexOf('flightaware') !== -1;
 
-    // ── Fetch terminals ────────────────────────────────────────
-    async function loadTerminals() {
-      const iata = document.getElementById('airportSelect').value;
-      const grid = document.getElementById('terminalsGrid');
-      const indicator = document.getElementById('liveIndicator');
+  container.innerHTML = delays.map(function(d) {
+    var reasons = d.reasons && d.reasons.length ? d.reasons.join(', ') : '';
+    var detail  = d.delayMin > 0 ? '~' + d.delayMin + ' min avg delay' : 'Active program';
+    if (reasons) detail += ' · ' + reasons;
+    return (
+      '<div class="delay-alert ' + (d.color || 'YELLOW') + '">' +
+        '<span class="delay-alert-icon">' + (icons[d.color] || '⚠️') + '</span>' +
+        '<div class="delay-alert-body">' +
+          '<div class="delay-alert-type">' + esc(d.type) + '</div>' +
+          '<div class="delay-alert-detail">' + esc(detail) + '</div>' +
+        '</div>' +
+        (hasFa ? '<span class="delay-source">FlightAware</span>' : '') +
+      '</div>'
+    );
+  }).join('');
+}
 
-      // Show skeletons
-      grid.innerHTML = [1,2,3].map(() => `
-        <div class="glass terminal-card">
-          <div class="terminal-card-top">
-            <div class="skeleton skeleton-text"></div>
-          </div>
-          <div class="skeleton skeleton-number" style="margin-top:12px;"></div>
-          <div class="skeleton skeleton-text-sm"></div>
-        </div>`).join('');
+function capitalize(s) { return String(s).charAt(0).toUpperCase() + String(s).slice(1); }
 
-      allTerminals = [];
-      waitTimes    = {};
+// ════════════════════════════════════════════════════════════════
+// AIRPORT DROPDOWN (alphabetical)
+// ════════════════════════════════════════════════════════════════
+function populateAirports() {
+  const sel = document.getElementById('airportSelect');
+  sel.innerHTML = AIRPORTS.map(a =>
+    `<option value="${a.iata}">${a.city.split(',')[0]} (${a.iata})</option>`
+  ).join('');
+}
 
-      try {
-        const res = await fetch(`/api/terminals?airportIata=${iata}`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        allTerminals = await res.json();
-      } catch (e) {
-        grid.innerHTML = `<div class="error-state">Could not load checkpoints for ${iata}. Please try again.</div>`;
-        return;
-      }
+// ════════════════════════════════════════════════════════════════
+// GEOLOCATION — find nearest airport
+// ════════════════════════════════════════════════════════════════
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R  = 6371;
+  const dL = (lat2 - lat1) * Math.PI / 180;
+  const dO = (lon2 - lon1) * Math.PI / 180;
+  const a  = Math.sin(dL/2) * Math.sin(dL/2)
+           + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180)
+           * Math.sin(dO/2) * Math.sin(dO/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
-      if (!allTerminals.length) {
-        grid.innerHTML = `<div class="empty-state">No checkpoints found for ${iata}.</div>`;
-        updateCheckpointDropdown();
-        return;
-      }
+function nearestAirport(lat, lon) {
+  return AIRPORTS.reduce(function(best, a) {
+    const d = haversineKm(lat, lon, a.lat, a.lon);
+    return d < best.dist ? { airport: a, dist: d } : best;
+  }, { airport: AIRPORTS[0], dist: Infinity }).airport;
+}
 
-      // Render cards immediately with loading state, then fill in wait times
-      renderTerminalCards(true);
-      updateCheckpointDropdown();
+// ── Resolve routing airport — returns single airport or shows picker ──
+var _routeTargetAirport = null; // currently selected route target
 
-      // Fetch all wait times in parallel
-      await Promise.allSettled(
-        allTerminals.map(t => fetchWaitTime(t.id))
-      );
+function nearbyRouteAirports(lat, lon) {
+  // Find all airports within reasonable driving distance (150km)
+  var near = ALL_ROUTE_AIRPORTS.filter(function(a) {
+    return haversineKm(lat, lon, a.lat, a.lon) < 150;
+  }).sort(function(a, b) {
+    return haversineKm(lat, lon, a.lat, a.lon) - haversineKm(lat, lon, b.lat, b.lon);
+  });
+  return near;
+}
 
-      renderTerminalCards(false);
-      updateCalcResult();
+function checkMetroGroup(airports) {
+  // Return the metro group if all airports fall in same metro area
+  var iataCodes = airports.map(function(a) { return a.iata; });
+  for (var i = 0; i < METRO_AIRPORTS.length; i++) {
+    var g = METRO_AIRPORTS[i];
+    var inGroup = iataCodes.filter(function(c) { return g.airports.indexOf(c) !== -1; });
+    if (inGroup.length >= 2) return g;
+  }
+  return null;
+}
 
-      const now = new Date();
-      document.getElementById('lastUpdated').textContent =
-        `Updated ${formatTime(now)}`;
-      indicator.textContent = 'Live';
+function showAirportRoutePicker(airports, onSelect) {
+  var picker = document.getElementById('airportRoutePicker');
+  var btns   = document.getElementById('arpButtons');
+  picker.classList.add('visible');
+  btns.innerHTML = airports.map(function(a, i) {
+    var distKm = userLocation ? Math.round(haversineKm(userLocation.lat, userLocation.lng, a.lat, a.lon)) : '';
+    var active  = (_routeTargetAirport && _routeTargetAirport.iata === a.iata) || (!_routeTargetAirport && i === 0);
+    return '<button class="arp-btn' + (active ? ' active' : '') + '" id="arpBtn_' + a.iata + '" onclick="selectRouteAirport(\'' + a.iata + '\')">' +
+      '<span>' + esc(a.iata) + '</span>' +
+      esc(a.name.replace(' International','').replace(' Airport','')) +
+      (distKm ? '<span style="font-size:10px;color:var(--muted);font-family:sans-serif;">' + distKm + ' km</span>' : '') +
+      '</button>';
+  }).join('');
+}
 
-      // Auto-refresh every 60 s
-      clearInterval(refreshTimer);
-      refreshTimer = setInterval(refreshWaitTimes, 60000);
-    }
+var _routeAirportList = [];
+function selectRouteAirport(iata) {
+  _routeTargetAirport = getRouteAirport(iata);
+  // Update button highlights
+  _routeAirportList.forEach(function(a) {
+    var btn = document.getElementById('arpBtn_' + a.iata);
+    if (btn) btn.classList.toggle('active', a.iata === iata);
+  });
+  if (userLocation) calcRoute(userLocation, _routeTargetAirport);
+}
 
-    // ── Fetch a single wait time ───────────────────────────────
-    async function fetchWaitTime(terminalId) {
-      try {
-        const res = await fetch(`/api/wait-times/${terminalId}`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        waitTimes[terminalId] = typeof data.estimatedWaitMinutes === 'number'
-          ? data.estimatedWaitMinutes
-          : null;
-      } catch {
-        waitTimes[terminalId] = null;
-      }
-    }
+function detectNearestAirport() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const btn   = document.getElementById('locationBtn');
+  const badge = document.getElementById('locationBadge');
+  btn.disabled    = true;
+  btn.textContent = '📍 Locating…';
 
-    // ── Refresh wait times only (no terminal reload) ──────────
-    async function refreshWaitTimes() {
-      await Promise.allSettled(
-        allTerminals.map(t => fetchWaitTime(t.id))
-      );
-      renderTerminalCards(false);
-      updateCalcResult();
-      const now = new Date();
-      document.getElementById('lastUpdated').textContent =
-        `Updated ${formatTime(now)}`;
-    }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
 
-    // ── Render terminal cards ──────────────────────────────────
-    function renderTerminalCards(loading) {
-      const grid = document.getElementById('terminalsGrid');
-      const selectedId = document.getElementById('checkpointSelect').value;
+      // Check for multi-airport metro FIRST so picker is shown
+      var nearby        = nearbyRouteAirports(userLocation.lat, userLocation.lng);
+      var metro         = checkMetroGroup(nearby);
+      var metroAirports = metro ? nearby.filter(function(a) {
+        return metro.airports.indexOf(a.iata) !== -1;
+      }) : [];
 
-      grid.innerHTML = allTerminals.map(t => {
-        const min = waitTimes[t.id];
-        const cc  = colorClass(min);
-        const isSelected = t.id === selectedId;
+      // Always select the nearest TSA-listed airport in the main dropdown
+      const airport = nearestAirport(userLocation.lat, userLocation.lng);
+      document.getElementById('airportSelect').value = airport.iata;
+      document.getElementById('locationLabel').textContent =
+        airport.city.split(',')[0] + ' (' + airport.iata + ')';
+      badge.classList.add('visible');
+      btn.style.display = 'none';
 
-        const waitHtml = loading
-          ? `<div class="skeleton skeleton-number"></div><div class="skeleton skeleton-text-sm" style="margin-top:6px;"></div>`
-          : min === null
-            ? `<div class="wait-number color-muted" style="font-family:monospace;font-size:28px;color:var(--muted)">—</div>
-               <div class="wait-sublabel">No data</div>`
-            : `<div class="wait-display">
-                 <span class="wait-number ${cc}">${min}</span>
-                 <span class="wait-unit ${cc}">min</span>
-               </div>
-               <div class="wait-sublabel">${urgencyLabel(min)}</div>`;
+      // Load TSA data + board for the selected airport
+      onAirportChange();
 
-        const precheckBadge = t.is_precheck
-          ? `<span class="precheck-tag">PRE✓</span>`
-          : '';
-
-        return `
-          <div class="glass terminal-card${isSelected ? ' selected' : ''}"
-               onclick="selectCheckpoint('${t.id}')" data-id="${t.id}">
-            <div class="terminal-card-top">
-              <div class="terminal-name">${escHtml(t.name || t.checkpoint_name || 'Checkpoint')}</div>
-              ${precheckBadge}
-            </div>
-            ${waitHtml}
-          </div>`;
-      }).join('');
-    }
-
-    function escHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    // ── Update checkpoint dropdown in calculator ──────────────
-    function updateCheckpointDropdown() {
-      const sel = document.getElementById('checkpointSelect');
-      const cur = sel.value;
-      sel.innerHTML = '<option value="">Select a checkpoint…</option>' +
-        allTerminals.map(t =>
-          `<option value="${t.id}"${t.id === cur ? ' selected' : ''}>
-            ${escHtml(t.name || t.checkpoint_name || 'Checkpoint')}${t.is_precheck ? ' (PreCheck)' : ''}
-          </option>`
-        ).join('');
-      if (cur && allTerminals.find(t => t.id === cur)) sel.value = cur;
-    }
-
-    // ── Clicking a card selects it in the calculator ──────────
-    function selectCheckpoint(id) {
-      document.getElementById('checkpointSelect').value = id;
-      // Scroll to calculator
-      document.getElementById('calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      renderTerminalCards(false);
-      calculate();
-    }
-
-    // ── Leave-by calculation ──────────────────────────────────
-    function calculate() {
-      const flightTimeVal = document.getElementById('flightTime').value;
-      const driveMin      = parseInt(document.getElementById('driveTime').value) || 30;
-      const terminalId    = document.getElementById('checkpointSelect').value;
-
-      const result    = document.getElementById('calcResult');
-      const noFlight  = document.getElementById('noFlightMsg');
-
-      if (!flightTimeVal) {
-        result.classList.remove('visible');
-        noFlight.style.display = 'block';
-        return;
-      }
-      noFlight.style.display = 'none';
-
-      // Parse departure time as today's date
-      const now        = new Date();
-      const [hh, mm]   = flightTimeVal.split(':').map(Number);
-      const departure  = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
-      // If the departure time is in the past, assume tomorrow
-      if (departure < now) departure.setDate(departure.getDate() + 1);
-
-      const securityMin = (terminalId && waitTimes[terminalId] != null)
-        ? waitTimes[terminalId]
-        : 20; // default if no data yet
-
-      const gateWalkMin = 10;
-      const bufferMin   = 15;
-      const totalBuffer = driveMin + securityMin + gateWalkMin + bufferMin;
-
-      const leaveBy = new Date(departure.getTime() - totalBuffer * 60 * 1000);
-      const minsUntilLeave = minutesUntil(leaveBy);
-
-      // Color urgency of leave-by time
-      let timeColor = 'color-safe';
-      if (minsUntilLeave < 0)  timeColor = 'color-critical';
-      else if (minsUntilLeave < 30) timeColor = 'color-urgent';
-      else if (minsUntilLeave < 60) timeColor = 'color-soon';
-
-      const resultTimeEl = document.getElementById('resultTime');
-      resultTimeEl.textContent = formatTime(leaveBy);
-      resultTimeEl.className = `result-time ${timeColor}`;
-
-      document.getElementById('resultBreakdown').innerHTML = [
-        `<span class="pill">Drive ${driveMin} min</span>`,
-        `<span class="pill">Security ${securityMin} min</span>`,
-        `<span class="pill">Gate walk ${gateWalkMin} min</span>`,
-        `<span class="pill">Buffer ${bufferMin} min</span>`,
-      ].join('');
-
-      let noteText = '';
-      if (minsUntilLeave < 0) {
-        noteText = `<strong>You should have left ${Math.abs(minsUntilLeave)} min ago.</strong>`;
-      } else if (minsUntilLeave < 30) {
-        noteText = `<strong>Leave now</strong> — only ${minsUntilLeave} min until you need to go.`;
+      // Show airport picker if multiple options in same metro
+      if (metro && metroAirports.length > 1) {
+        _routeAirportList   = metroAirports;
+        _routeTargetAirport = metroAirports[0];
+        showAirportRoutePicker(metroAirports);
+        // Route to the first (closest) metro airport
+        if (mapsReady) calcRoute(userLocation, _routeTargetAirport);
       } else {
-        noteText = `<strong>${minsUntilLeave} minutes</strong> until you need to leave.`;
+        // Route directly to nearest airport
+        _routeTargetAirport = airport;
+        document.getElementById('airportRoutePicker').classList.remove('visible');
+        if (mapsReady) calcRoute(userLocation, airport);
       }
-      document.getElementById('resultNote').innerHTML = noteText;
+    },
+    function(err) {
+      btn.disabled    = false;
+      btn.textContent = '📍 Use My Location';
+      var msg = 'Could not detect location.';
+      if (err.code === 1) msg = 'Location access denied. Please allow location in your browser settings.';
+      alert(msg);
+    },
+    { timeout: 8000, maximumAge: 300000 }
+  );
+}
 
-      result.classList.add('visible');
+// ════════════════════════════════════════════════════════════════
+// GOOGLE MAPS — load dynamically, init, route
+// ════════════════════════════════════════════════════════════════
+const MAP_DARK_STYLE = [
+  // Base geometry — near-black with subtle navy tint
+  { elementType: 'geometry',            stylers: [{ color: '#090e1a' }] },
+  { elementType: 'labels.text.stroke',  stylers: [{ color: '#090e1a' }] },
+  { elementType: 'labels.text.fill',    stylers: [{ color: '#3a5068' }] },
+  // Admin borders — faint dark-blue lines only
+  { featureType: 'administrative',           elementType: 'geometry',           stylers: [{ color: '#162030' }, { weight: 0.8 }] },
+  { featureType: 'administrative.country',   elementType: 'labels.text.fill',   stylers: [{ color: '#4a6070' }] },
+  { featureType: 'administrative.province',  elementType: 'labels.text.fill',   stylers: [{ color: '#3a5060' }] },
+  { featureType: 'administrative.locality',  elementType: 'labels.text.fill',   stylers: [{ color: '#4a6070' }] },
+  // No POIs, no transit; roads kept dark for driving-directions context
+  { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road',              elementType: 'geometry',         stylers: [{ color: '#0f1e30' }] },
+  { featureType: 'road',              elementType: 'labels',           stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.highway',      elementType: 'geometry',         stylers: [{ color: '#162840' }, { weight: 1.2 }] },
+  { featureType: 'road.arterial',     elementType: 'geometry',         stylers: [{ color: '#0d1a28' }] },
+  // Water — darkest element
+  { featureType: 'water', elementType: 'geometry',          stylers: [{ color: '#050912' }] },
+  { featureType: 'water', elementType: 'labels.text.fill',  stylers: [{ color: '#162535' }] },
+  // Land — slightly lighter than water
+  { featureType: 'landscape',         elementType: 'geometry', stylers: [{ color: '#0c1222' }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#0c1222' }] },
+];
+
+async function loadGoogleMaps() {
+  try {
+    const res  = await fetch('/api/maps-config');
+    const data = await res.json();
+    if (!data.key) {
+      console.warn('No GOOGLE_MAPS_API_KEY configured — map disabled.');
+      document.getElementById('airport-map').innerHTML =
+        '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;flex-direction:column;gap:8px;">' +
+        '<span style="font-size:24px;">🗺</span>Add GOOGLE_MAPS_API_KEY to enable the map</div>';
+      return;
+    }
+    await new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + data.key + '&libraries=places';
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    mapsReady = true;
+    var iata    = document.getElementById('airportSelect').value;
+    var airport = getAirport(iata);
+    initMap(airport);
+    if (userLocation) {
+      // Use the already-chosen route target (e.g. DAL vs DFW) if set, else nearest airport
+      calcRoute(userLocation, _routeTargetAirport || airport);
+    }
+    // Auto-start live traffic
+    startLiveTraffic();
+  } catch (e) {
+    console.error('Google Maps load failed:', e);
+  }
+}
+
+var mapsReady = false;
+
+function initMap(airport) {
+  if (!mapsReady) return;
+  var center = { lat: airport.lat, lng: airport.lon };
+
+  if (!gmap) {
+    gmap = new google.maps.Map(document.getElementById('airport-map'), {
+      center: { lat: 39.5, lng: -98.35 },   // center of continental US
+      zoom: 5,
+      styles: MAP_DARK_STYLE,
+      disableDefaultUI: false,
+      zoomControl: true,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+    });
+
+    directionsRenderer = new google.maps.DirectionsRenderer({
+      suppressMarkers: false,
+      polylineOptions: {
+        strokeColor: '#3B82F6',
+        strokeWeight: 5,
+        strokeOpacity: 0.85,
+      },
+    });
+    directionsRenderer.setMap(gmap);
+  } else {
+    gmap.panTo(center);
+    gmap.setZoom(8);
+  }
+
+  if (airportMarker) airportMarker.setMap(null);
+  airportMarker = new google.maps.Marker({
+    position: center,
+    map: gmap,
+    title: airport.name,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 14,
+      fillColor: '#3B82F6',
+      fillOpacity: 0.25,
+      strokeColor: '#3B82F6',
+      strokeWeight: 2.5,
+    },
+  });
+  var infoWin = new google.maps.InfoWindow({
+    content:
+      '<div style="background:#0D1525;color:#F0F4FF;border-radius:10px;padding:10px 14px;min-width:160px;">' +
+      '<div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + airport.iata + '</div>' +
+      '<div style="font-size:12px;color:#94a3b8;margin-bottom:3px;">' + esc(airport.name) + '</div>' +
+      '<div style="font-size:12px;color:#64748b;">' + esc(airport.city) + '</div>' +
+      '</div>',
+  });
+  airportMarker.addListener('click', function() { infoWin.open(gmap, airportMarker); });
+}
+
+function pinFlightOnMap(data) {
+  if (flightMarker) { flightMarker.setMap(null); flightMarker = null; }
+  if (!mapsReady || !gmap || !data.live || data.live.isGround) return;
+
+  var riskColors = { low:'#22D3EE', medium:'#FBBF24', high:'#EF4444' };
+  var c = riskColors[data.delayRisk && data.delayRisk.risk] || '#22D3EE';
+
+  flightMarker = new google.maps.Marker({
+    position: { lat: data.live.latitude, lng: data.live.longitude },
+    map: gmap,
+    title: data.flightNumber,
+    icon: {
+      path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z',
+      fillColor: c,
+      fillOpacity: 0.9,
+      strokeColor: c,
+      strokeWeight: 1,
+      scale: 1.4,
+      anchor: new google.maps.Point(12, 12),
+    },
+  });
+  var infoWin = new google.maps.InfoWindow({
+    content:
+      '<div style="background:#0D1525;color:#F0F4FF;border-radius:10px;padding:10px 14px;">' +
+      '<b>' + esc(data.flightNumber) + '</b><br>' +
+      esc((data.origin && data.origin.iata) || '?') + ' \u2192 ' + esc((data.destination && data.destination.iata) || '?') + '<br>' +
+      '<span style="color:#94a3b8;">' + Math.round(data.live.speed) + ' kts &middot; ' + data.live.altitude.toLocaleString() + ' ft</span>' +
+      '</div>',
+  });
+  flightMarker.addListener('click', function() { infoWin.open(gmap, flightMarker); });
+}
+
+// ════════════════════════════════════════════════════════════════
+// ROUTE CALCULATION
+// ════════════════════════════════════════════════════════════════
+function calcRoute(origin, airport) {
+  if (!mapsReady || !gmap || !directionsRenderer) return;
+  if (!origin || !airport) return;
+  _routeTargetAirport = airport;
+
+  // Ensure renderer is attached to the current map instance
+  directionsRenderer.setMap(gmap);
+
+  var svc = new google.maps.DirectionsService();
+  svc.route({
+    origin:      new google.maps.LatLng(origin.lat, origin.lng),
+    destination: new google.maps.LatLng(airport.lat, airport.lon),
+    travelMode:  google.maps.TravelMode.DRIVING,
+  }, function(result, status) {
+    if (status !== 'OK') {
+      console.warn('[calcRoute] Directions failed:', status);
+      return;
     }
 
-    function updateCalcResult() {
-      const flightTimeVal = document.getElementById('flightTime').value;
-      if (flightTimeVal) calculate();
+    directionsRenderer.setDirections(result);
+
+    var leg       = result.routes[0].legs[0];
+    var driveMins = Math.ceil(leg.duration.value / 60);
+    var distText  = leg.distance.text;
+    var shortName = airport.name.replace(' International','').replace(' Airport','');
+    var summary   = 'via ' + result.routes[0].summary + ' → ' + airport.iata + ' (' + shortName + ')';
+
+    // Show route strip + Apple Maps button
+    document.getElementById('routeDrive').textContent   = driveMins + ' min';
+    document.getElementById('routeDist').textContent    = distText;
+    document.getElementById('routeSummary').textContent = summary;
+    document.getElementById('routeStrip').classList.add('visible');
+    document.getElementById('appleMapsBtn').classList.add('visible');
+
+    // Auto-fill Gate Zero drive time
+    document.getElementById('driveTime').value = driveMins;
+    calculate();
+
+    // Zoom map to show the full route
+    var bounds = new google.maps.LatLngBounds();
+    result.routes[0].overview_path.forEach(function(p) { bounds.extend(p); });
+    gmap.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+  });
+}
+
+// Apple Maps deep link — opens the Maps app on iPhone/iPad with directions ready
+function openAppleMaps() {
+  var airport = _routeTargetAirport || getAirport(document.getElementById('airportSelect').value);
+  var lat  = airport.lat;
+  var lon  = airport.lon;
+  var dest = encodeURIComponent(airport.name);
+
+  // On iOS/iPadOS use the maps:// URI scheme — opens Maps app directly
+  var isAppleDevice = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+  var url = isAppleDevice
+    ? 'maps://?daddr=' + lat + ',' + lon + '&dirflg=d&t=m'
+    : 'https://maps.apple.com/?daddr=' + lat + ',' + lon + '&dirflg=d&t=m';
+
+  window.open(url, '_blank');
+}
+
+// ════════════════════════════════════════════════════════════════
+// FLIGHT LOOKUP + AI PANEL
+// ════════════════════════════════════════════════════════════════
+// isPremium: must enter code "5522" each session (no persistent storage)
+var isPremium = false;
+
+async function lookupFlight() {
+  const num = document.getElementById('flightInput').value.trim().toUpperCase();
+  if (!num || num.length < 3) { alert('Enter a valid flight number, e.g. AA123'); return; }
+
+  const btn       = document.getElementById('lookupBtn');
+  const aiPanel   = document.getElementById('aiPanel');
+  const aiLoading = document.getElementById('aiLoading');
+  const aiData    = document.getElementById('aiData');
+
+  btn.disabled    = true;
+  btn.textContent = 'Tracking…';
+  aiPanel.classList.add('visible');
+  aiLoading.style.display = 'flex';
+  aiData.style.display    = 'none';
+  // Reset any previous lock gate
+  aiData.classList.remove('ai-panel-locked');
+  const prevBlur = aiData.querySelector('.ai-panel-blur');
+  if (prevBlur) { aiData.innerHTML = prevBlur.innerHTML; }
+
+  try {
+    const res  = await fetch('/api/flight-status?flight=' + encodeURIComponent(num));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lookup failed');
+    currentFlight = data;
+
+    // Inbound tracker — always shown, no paywall
+    renderInboundTracker(data);
+
+    // Highlight this flight in the board
+    highlightFlt = data.flightNumber;
+    renderBoardRows();
+
+    if (isPremium) {
+      renderAIPanel(data);
+      renderLegs(data);
+    } else {
+      renderAIPanel(data);
+      renderLegs(data);
+      showAILockGate();
+    }
+    pinFlightOnMap(data);
+    calculate();
+  } catch (err) {
+    document.getElementById('inboundSection').style.display = 'none';
+    document.getElementById('aiGrid').innerHTML = '';
+    const riskEl = document.getElementById('delayRisk');
+    riskEl.className = 'delay-risk medium';
+    riskEl.innerHTML = '<span>\u26a0 ' + esc(err.message) + '</span>';
+    document.getElementById('aiNote').textContent = '';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Analyze Flight';
+    aiLoading.style.display = 'none';
+    aiData.style.display    = 'block';
+  }
+}
+
+function showAILockGate() {
+  const aiData = document.getElementById('aiData');
+  if (aiData.querySelector('.ai-lock-overlay')) return; // already shown
+  aiData.classList.add('ai-panel-locked');
+  // Wrap existing content in blur div
+  const inner = aiData.innerHTML;
+  aiData.innerHTML =
+    '<div class="ai-panel-blur">' + inner + '</div>' +
+    '<div class="ai-lock-overlay">' +
+      '<span class="ai-lock-icon">\uD83D\uDD12</span>' +
+      '<div class="ai-lock-msg">AI Delay Detection — Premium</div>' +
+      '<div class="ai-lock-sub">Real-time aircraft tracking &amp; delay prediction</div>' +
+      '<button class="ai-lock-btn" onclick="showPremiumModal()">⚡ Unlock Premium</button>' +
+    '</div>';
+}
+
+function renderAIPanel(data) {
+  const r    = data.delayRisk || { risk:'low', reason:'On schedule' };
+  const live = data.live;
+
+  const stats = [
+    { label:'From',     value: (data.origin && data.origin.iata) || '\u2014' },
+    { label:'Status',   value: capitalize(data.status || 'unknown') },
+    { label:'Altitude', value: live ? live.altitude.toLocaleString() + ' ft' : '\u2014' },
+    { label:'Speed',    value: live ? Math.round(live.speed) + ' kts' : '\u2014' },
+  ];
+
+  document.getElementById('aiGrid').innerHTML = stats.map(s =>
+    '<div class="ai-stat"><div class="ai-stat-label">' + s.label + '</div><div class="ai-stat-value">' + esc(s.value) + '</div></div>'
+  ).join('');
+
+  const icons  = { low:'✅', medium:'⚠️', high:'🚨' };
+  const labels = { low:'Low Delay Risk', medium:'Moderate Delay Risk', high:'High Delay Risk' };
+  const el     = document.getElementById('delayRisk');
+  el.className = 'delay-risk ' + r.risk;
+  el.innerHTML = '<span style="font-size:15px;">' + (icons[r.risk] || '') + '</span><span>' + (labels[r.risk] || '') + ' — ' + esc(r.reason) + '</span>';
+
+  document.getElementById('aiNote').textContent = data.mock
+    ? '\u26a0 Demo data — add AVIATIONSTACK_API_KEY to enable live tracking.'
+    : esc(data.airline) + ' ' + esc(data.flightNumber) + ' — tracking in real time.';
+}
+
+function renderLegs(data) {
+  const panel = document.getElementById('legsPanel');
+  const list  = document.getElementById('legsList');
+  const iata  = document.getElementById('airportSelect').value;
+
+  if (!data.origin || data.origin.iata === iata) {
+    panel.classList.remove('visible');
+    return;
+  }
+
+  const legs = [
+    { label: data.flightNumber + ' (Inbound)',     from: data.origin.iata, to: iata, status: data.status },
+    { label: data.flightNumber + ' (Your flight)', from: iata, to: (data.destination && data.destination.iata) || '?', status: 'scheduled' },
+  ];
+  list.innerHTML = legs.map(function(l) {
+    const rc = l.status === 'active' ? 'color-safe' : l.status === 'cancelled' ? 'color-critical' : 'color-muted';
+    return '<div class="leg"><span class="leg-num">' + esc(l.label) + '</span><span class="leg-route">' + esc(l.from) + ' \u2192 ' + esc(l.to) + '</span><span class="leg-status ' + rc + '">' + capitalize(l.status) + '</span></div>';
+  }).join('');
+  panel.classList.add('visible');
+}
+
+// ════════════════════════════════════════════════════════════════
+// TERMINALS
+// ════════════════════════════════════════════════════════════════
+async function loadTerminals() {
+  const iata    = document.getElementById('airportSelect').value;
+  const airport = getAirport(iata);
+  const grid    = document.getElementById('terminalsGrid');
+
+  document.getElementById('airportBadgeCode').textContent = iata;
+  document.getElementById('tooltipName').textContent      = airport.name;
+  document.getElementById('tooltipDetail').textContent    = airport.city;
+
+  document.getElementById('departuresBadge').textContent = 'Loading…';
+  document.getElementById('delayAlerts').innerHTML = '';
+  // Fetch real departure count + delay alerts in background (non-blocking)
+  fetchDepartures(iata);
+
+  initMap(airport);
+
+  grid.innerHTML = [1,2,3].map(function() {
+    return '<div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>';
+  }).join('');
+
+  allTerminals = [];
+  waitTimes    = {};
+
+  try {
+    const res = await fetch('/api/terminals?airportIata=' + iata);
+    if (!res.ok) throw new Error(String(res.status));
+    allTerminals = await res.json();
+  } catch (e) {
+    grid.innerHTML = '<div class="error-state">Could not load checkpoints for ' + esc(iata) + '. Please try again.</div>';
+    return;
+  }
+
+  if (!allTerminals.length) {
+    grid.innerHTML = '<div class="empty-state">No checkpoints found for ' + esc(iata) + '.</div>';
+    updateCheckpointDropdown();
+    return;
+  }
+
+  renderTerminalCards(true);
+  updateCheckpointDropdown();
+  await Promise.allSettled(allTerminals.map(function(t) { return fetchWaitTime(t.id); }));
+  renderTerminalCards(false);
+  updateCalcResult();
+
+  document.getElementById('lastUpdated').textContent = 'Updated ' + fmt12(new Date());
+  document.getElementById('liveIndicator').textContent = 'Live';
+
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshWaitTimes, 60000);
+}
+
+async function fetchWaitTime(id) {
+  try {
+    const res  = await fetch('/api/wait-times/' + id);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    waitTimes[id] = typeof data.estimatedWaitMinutes === 'number' ? data.estimatedWaitMinutes : null;
+  } catch (e) {
+    waitTimes[id] = null;
+  }
+}
+
+async function refreshWaitTimes() {
+  await Promise.allSettled(allTerminals.map(function(t) { return fetchWaitTime(t.id); }));
+  renderTerminalCards(false);
+  updateCalcResult();
+  document.getElementById('lastUpdated').textContent = 'Updated ' + fmt12(new Date());
+}
+
+function getArrivalAtAirport() {
+  const ft = document.getElementById('flightTime').value;
+  if (!ft) return new Date();
+  const drive  = parseInt(document.getElementById('driveTime').value)  || 30;
+  const buffer = parseInt(document.getElementById('bufferTime').value) || 15;
+  const parts  = ft.split(':').map(Number);
+  const dep    = new Date();
+  dep.setHours(parts[0], parts[1], 0, 0);
+  if (dep < new Date()) dep.setDate(dep.getDate() + 1);
+  return new Date(dep.getTime() - (drive + buffer) * 60000);
+}
+
+function renderTerminalCards(loading) {
+  const grid      = document.getElementById('terminalsGrid');
+  const selId     = document.getElementById('checkpointSelect').value;
+  const arrivalAt = getArrivalAtAirport();
+
+  grid.innerHTML = allTerminals.map(function(t) {
+    const min  = waitTimes[t.id];
+    const cc   = colorClass(min);
+    const pred = predictWait(min, arrivalAt);
+    const pcc  = colorClass(pred);
+    const sel  = t.id === selId;
+
+    var waitHtml;
+    if (loading) {
+      waitHtml = '<div class="wait-row"><div class="skeleton sk-num"></div></div><div class="skeleton sk-txt-sm" style="margin-top:6px;"></div>';
+    } else if (min == null) {
+      waitHtml = '<div class="wait-row"><div class="wait-col"><div class="wait-col-label">Now</div><div class="wait-display"><span class="wait-number color-muted">\u2014</span></div></div></div><div class="wait-sublabel">No data</div>';
+    } else {
+      waitHtml =
+        '<div class="wait-row">' +
+          '<div class="wait-col">' +
+            '<div class="wait-col-label">Now</div>' +
+            '<div class="wait-display">' +
+              '<span class="wait-number ' + cc + '">' + min + '</span>' +
+              '<span class="wait-unit ' + cc + '">min</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="wait-divider"></div>' +
+          '<div class="wait-col">' +
+            '<div class="wait-col-label ai-label">At Arrival</div>' +
+            '<div class="wait-display">' +
+              '<span class="wait-number sm ' + pcc + '">' + (pred != null ? pred : '\u2014') + '</span>' +
+              (pred != null ? '<span class="wait-unit ' + pcc + '" style="opacity:.75;font-size:9px;">min</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="wait-sublabel">' + urgencyLabel(min) + '</div>';
     }
 
-    // ── Airport change ─────────────────────────────────────────
-    function onAirportChange() {
-      clearInterval(refreshTimer);
-      loadTerminals();
-    }
+    const preCheck = t.is_precheck ? '<span class="precheck-tag">PRE\u2713</span>' : '';
+    return (
+      '<div class="glass terminal-card' + (sel ? ' selected' : '') + '" onclick="selectCheckpoint(\'' + t.id + '\')" data-id="' + t.id + '">' +
+        '<div class="terminal-top">' +
+          '<div class="terminal-name">' + esc(t.checkpoint_name || t.name || 'Checkpoint') + '</div>' +
+          preCheck +
+        '</div>' +
+        waitHtml +
+      '</div>'
+    );
+  }).join('');
+}
 
-    // ── Boot ──────────────────────────────────────────────────
-    loadTerminals();
-  </script>
+function updateCheckpointDropdown() {
+  const sel = document.getElementById('checkpointSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Select checkpoint\u2026</option>' +
+    allTerminals.map(function(t) {
+      return '<option value="' + t.id + '"' + (t.id === cur ? ' selected' : '') + '>' +
+        esc(t.checkpoint_name || t.name || 'Checkpoint') + (t.is_precheck ? ' \u2713Pre' : '') +
+        '</option>';
+    }).join('');
+  if (cur && allTerminals.find(function(t) { return t.id === cur; })) sel.value = cur;
+}
+
+function selectCheckpoint(id) {
+  document.getElementById('checkpointSelect').value = id;
+  renderTerminalCards(false);
+  document.getElementById('gate-zero').scrollIntoView({ behavior:'smooth', block:'start' });
+  calculate();
+}
+
+// ════════════════════════════════════════════════════════════════
+// GATE ZERO CALCULATOR
+// ════════════════════════════════════════════════════════════════
+function calculate() {
+  const ft        = document.getElementById('flightTime').value;
+  const driveMin  = parseInt(document.getElementById('driveTime').value)  || 30;
+  const bufferMin = parseInt(document.getElementById('bufferTime').value) || 15;
+  const tid       = document.getElementById('checkpointSelect').value;
+  const result    = document.getElementById('calcResult');
+  const noFlight  = document.getElementById('noFlightMsg');
+  const uberCta   = document.getElementById('uberCta');
+
+  if (!ft) {
+    result.classList.remove('visible');
+    uberCta.classList.remove('visible');
+    noFlight.style.display = 'block';
+    return;
+  }
+  noFlight.style.display = 'none';
+
+  const now   = new Date();
+  const parts = ft.split(':').map(Number);
+  const dep   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1]);
+  if (dep < now) dep.setDate(dep.getDate() + 1);
+
+  const arrivalAtAirport = new Date(dep.getTime() - (driveMin + bufferMin) * 60000);
+
+  // Predicted wait is smarter — uses time-of-day regression vs current
+  var secMin = 20;
+  if (tid && waitTimes[tid] != null) {
+    secMin = predictWait(waitTimes[tid], arrivalAtAirport) || 20;
+  } else {
+    var vals = Object.values(waitTimes).filter(function(v) { return v != null; });
+    if (vals.length) {
+      var avg = Math.round(vals.reduce(function(a,b){return a+b;},0) / vals.length);
+      secMin = predictWait(avg, arrivalAtAirport) || 20;
+    }
+  }
+
+  const terminal    = allTerminals.find(function(t) { return t.id === tid; });
+  const gateWalkMin = (terminal && terminal.walk_to_gate_avg_minutes) || 10;
+  const totalMin    = driveMin + secMin + gateWalkMin + bufferMin;
+  const leaveBy     = new Date(dep.getTime() - totalMin * 60000);
+  const minsLeft    = minsUntil(leaveBy);
+
+  var tcolor = 'color-safe';
+  if (minsLeft < 0)       tcolor = 'color-critical';
+  else if (minsLeft < 30) tcolor = 'color-urgent';
+  else if (minsLeft < 60) tcolor = 'color-soon';
+
+  const rt   = document.getElementById('resultTime');
+  rt.textContent = fmt12(leaveBy);
+  rt.className   = 'result-time ' + tcolor;
+
+  document.getElementById('resultPills').innerHTML =
+    '<span class="pill">\uD83D\uDE97 Drive ' + driveMin + ' min</span>' +
+    '<span class="pill">\uD83D\uDD12 Security ~' + secMin + ' min (predicted)</span>' +
+    '<span class="pill">\uD83D\uDEB6 Gate walk ' + gateWalkMin + ' min</span>' +
+    '<span class="pill">\u23F1 Buffer ' + bufferMin + ' min</span>';
+
+  var note = '';
+  if (minsLeft < 0)       note = '<strong>Leave immediately</strong> \u2014 you\'re ' + Math.abs(minsLeft) + ' min behind.';
+  else if (minsLeft < 30) note = '<strong>Leave very soon</strong> \u2014 only ' + minsLeft + ' min left.';
+  else                    note = '<strong>' + minsLeft + ' minutes</strong> until you need to leave.';
+
+  if (currentFlight && currentFlight.delayRisk) {
+    if (currentFlight.delayRisk.risk === 'high')
+      note += ' <span style="color:var(--critical)">\u26a0 AI detected high delay risk \u2014 check for updates.</span>';
+    else if (currentFlight.delayRisk.risk === 'medium')
+      note += ' <span style="color:var(--soon)">\u26a0 Moderate delay risk on your inbound.</span>';
+  }
+
+  document.getElementById('resultNote').innerHTML = note;
+  result.classList.add('visible');
+  uberCta.classList.add('visible');
+
+  if (allTerminals.length) renderTerminalCards(false);
+}
+
+function updateCalcResult() {
+  if (document.getElementById('flightTime').value) calculate();
+}
+
+// ════════════════════════════════════════════════════════════════
+// UBER
+// ════════════════════════════════════════════════════════════════
+function openUber() {
+  const airport = getAirport(document.getElementById('airportSelect').value);
+  const url = 'https://m.uber.com/ul/?action=setPickup&pickup=my_location'
+    + '&dropoff[nickname]=' + encodeURIComponent(airport.name)
+    + '&dropoff[latitude]=' + airport.lat
+    + '&dropoff[longitude]=' + airport.lon
+    + '&promotion_code=SWIFTCLEAR';
+  window.open(url, '_blank');
+}
+
+// ════════════════════════════════════════════════════════════════
+// AIRPORT CHANGE
+// ════════════════════════════════════════════════════════════════
+function onAirportChange() {
+  clearInterval(refreshTimer);
+  currentFlight = null;
+  highlightFlt  = null;
+  document.getElementById('aiPanel').classList.remove('visible');
+  document.getElementById('legsPanel').classList.remove('visible');
+  document.getElementById('inboundSection').style.display = 'none';
+  const iata = document.getElementById('airportSelect').value;
+  loadTerminals();
+  loadBoard(iata);
+  // Keep simulation running across airport changes — just re-center the map
+  if (liveTrafficOn) { renderFleet(); }
+  // Recalculate route if we already have the user's location.
+  // On airport change, reset the route target to the newly selected airport.
+  if (userLocation && mapsReady) {
+    _routeTargetAirport = getAirport(iata);
+    document.getElementById('airportRoutePicker').classList.remove('visible');
+    calcRoute(userLocation, _routeTargetAirport);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PREMIUM MODAL
+// ════════════════════════════════════════════════════════════════
+const PREMIUM_CODE = '5522';
+
+function showPremiumModal() {
+  if (isPremium) return; // already unlocked — nothing to show
+  document.getElementById('premiumModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(function() {
+    var inp = document.getElementById('accessCodeInput');
+    if (inp) inp.focus();
+  }, 250);
+}
+function hidePremiumModal() {
+  document.getElementById('premiumModal').classList.remove('open');
+  document.body.style.overflow = '';
+  // Reset input state
+  var inp = document.getElementById('accessCodeInput');
+  var err = document.getElementById('codeError');
+  if (inp) { inp.value = ''; inp.style.borderColor = ''; inp.classList.remove('error','success'); }
+  if (err) err.textContent = '';
+}
+function closePremiumModalOutside(e) {
+  if (e.target === document.getElementById('premiumModal')) hidePremiumModal();
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hidePremiumModal();
+});
+
+function submitAccessCode() {
+  var inp = document.getElementById('accessCodeInput');
+  var err = document.getElementById('codeError');
+  var val = inp.value.trim();
+
+  if (val === PREMIUM_CODE) {
+    inp.classList.add('success');
+    inp.classList.remove('error');
+    err.textContent = '';
+    setTimeout(function() {
+      hidePremiumModal();
+      unlockPremium();
+    }, 400);
+  } else {
+    inp.classList.add('error');
+    inp.classList.remove('success');
+    inp.style.borderColor = 'var(--critical)';
+    err.textContent = 'Invalid code — please try again.';
+    inp.select();
+  }
+}
+
+function unlockPremium() {
+  isPremium = true;
+
+  // Nav button → "Premium Active"
+  var btn = document.querySelector('.btn-premium');
+  if (btn) {
+    btn.textContent = '⚡ Premium Active';
+    btn.classList.add('active');
+    btn.onclick = null;
+  }
+
+  // Hide all premium paywall pills
+  document.querySelectorAll('.premium-pill').forEach(function(el) {
+    el.style.display = 'none';
+  });
+  document.querySelectorAll('.feature-premium').forEach(function(el) {
+    el.innerHTML = '<span style="color:var(--safe);">✓ Included</span>';
+  });
+
+  // Remove AI lock gate if currently showing
+  var aiData = document.getElementById('aiData');
+  if (aiData && aiData.classList.contains('ai-panel-locked')) {
+    var prevBlur = aiData.querySelector('.ai-panel-blur');
+    if (prevBlur) { aiData.innerHTML = prevBlur.innerHTML; }
+    aiData.classList.remove('ai-panel-locked');
+  }
+
+  // Re-render AI panel + legs fully if a flight is loaded
+  if (currentFlight) {
+    renderAIPanel(currentFlight);
+    renderLegs(currentFlight);
+  }
+
+  showToast('⚡ Premium unlocked — all features active!');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3500);
+}
+
+// ════════════════════════════════════════════════════════════════
+// ML FLIGHT SIMULATION ENGINE
+// Great-circle path interpolation + phase-based altitude/speed
+// models + time-of-day density + stochastic variation.
+// OpenSky data merged in when available; simulation always runs.
+// ════════════════════════════════════════════════════════════════
+
+// ── All airport coordinates (main 15 + common destinations) ──
+const AP = {
+  ATL:{lat:33.6407,lon:-84.4277}, BOS:{lat:42.3656,lon:-71.0096},
+  CLT:{lat:35.2271,lon:-80.9431}, ORD:{lat:41.9742,lon:-87.9073},
+  DFW:{lat:32.8998,lon:-97.0403}, DEN:{lat:39.8561,lon:-104.6737},
+  LAS:{lat:36.0840,lon:-115.1537},LAX:{lat:33.9425,lon:-118.4081},
+  MIA:{lat:25.7959,lon:-80.2870}, MSP:{lat:44.8848,lon:-93.2223},
+  JFK:{lat:40.6413,lon:-73.7781}, MCO:{lat:28.4312,lon:-81.3081},
+  PHX:{lat:33.4373,lon:-112.0078},SFO:{lat:37.6213,lon:-122.3790},
+  SEA:{lat:47.4502,lon:-122.3088},EWR:{lat:40.6895,lon:-74.1745},
+  LGA:{lat:40.7772,lon:-73.8726}, DCA:{lat:38.8512,lon:-77.0402},
+  IAD:{lat:38.9531,lon:-77.4565}, BWI:{lat:39.1754,lon:-76.6683},
+  IAH:{lat:29.9902,lon:-95.3368}, DTW:{lat:42.2162,lon:-83.3554},
+  PHL:{lat:39.8719,lon:-75.2411}, MDW:{lat:41.7868,lon:-87.7522},
+  SLC:{lat:40.7884,lon:-111.9778},PDX:{lat:45.5898,lon:-122.5951},
+  SAN:{lat:32.7338,lon:-117.1933},SJC:{lat:37.3639,lon:-121.9289},
+  OAK:{lat:37.7213,lon:-122.2208},LHR:{lat:51.4700,lon:-0.4543},
+  CDG:{lat:49.0097,lon:2.5479},   NRT:{lat:35.7647,lon:140.3864},
+  GRU:{lat:-23.4356,lon:-46.4731},CUN:{lat:21.0365,lon:-86.8771},
+  MEX:{lat:19.4363,lon:-99.0721}, MBJ:{lat:18.5037,lon:-77.9134},
+  NAS:{lat:25.0390,lon:-77.4662}, YYZ:{lat:43.6777,lon:-79.6248},
+  YVR:{lat:49.1967,lon:-123.1815},GEG:{lat:47.6199,lon:-117.5339},
+};
+
+// ── Route database — top routes per hub airport ───────────────
+// { from, to, airline, freq }  freq: relative frequency (1=base)
+const ROUTES = [
+  // ATL
+  {f:'ATL',t:'JFK',a:'DAL',w:3},{f:'ATL',t:'LAX',a:'DAL',w:3},{f:'ATL',t:'ORD',a:'AAL',w:2},
+  {f:'ATL',t:'DFW',a:'AAL',w:2},{f:'ATL',t:'BOS',a:'DAL',w:2},{f:'ATL',t:'MIA',a:'DAL',w:2},
+  {f:'ATL',t:'DEN',a:'UAL',w:2},{f:'ATL',t:'MCO',a:'WN', w:3},{f:'ATL',t:'LHR',a:'DAL',w:1},
+  {f:'ATL',t:'CDG',a:'DAL',w:1},{f:'ATL',t:'PHX',a:'WN', w:2},{f:'ATL',t:'SEA',a:'DAL',w:1},
+  {f:'ATL',t:'LAS',a:'WN', w:2},{f:'ATL',t:'DCA',a:'DAL',w:2},{f:'ATL',t:'IAH',a:'UAL',w:1},
+  // ORD
+  {f:'ORD',t:'JFK',a:'AAL',w:3},{f:'ORD',t:'LAX',a:'UAL',w:3},{f:'ORD',t:'ATL',a:'UAL',w:2},
+  {f:'ORD',t:'SFO',a:'UAL',w:2},{f:'ORD',t:'DFW',a:'AAL',w:2},{f:'ORD',t:'MIA',a:'AAL',w:1},
+  {f:'ORD',t:'DEN',a:'UAL',w:2},{f:'ORD',t:'LHR',a:'UAL',w:2},{f:'ORD',t:'CDG',a:'AFR',w:1},
+  {f:'ORD',t:'BOS',a:'AAL',w:2},{f:'ORD',t:'SEA',a:'UAL',w:2},{f:'ORD',t:'PHX',a:'AAL',w:2},
+  {f:'ORD',t:'LAS',a:'UAL',w:2},{f:'ORD',t:'DCA',a:'AAL',w:2},{f:'ORD',t:'MSP',a:'DAL',w:1},
+  // DFW
+  {f:'DFW',t:'LAX',a:'AAL',w:3},{f:'DFW',t:'JFK',a:'AAL',w:3},{f:'DFW',t:'ORD',a:'AAL',w:2},
+  {f:'DFW',t:'MIA',a:'AAL',w:2},{f:'DFW',t:'ATL',a:'DAL',w:2},{f:'DFW',t:'SFO',a:'AAL',w:2},
+  {f:'DFW',t:'BOS',a:'AAL',w:2},{f:'DFW',t:'DEN',a:'UAL',w:1},{f:'DFW',t:'LHR',a:'AAL',w:1},
+  {f:'DFW',t:'CDG',a:'AAL',w:1},{f:'DFW',t:'MEX',a:'AAL',w:1},{f:'DFW',t:'CUN',a:'AAL',w:1},
+  {f:'DFW',t:'SEA',a:'AAL',w:1},{f:'DFW',t:'PHX',a:'AAL',w:2},{f:'DFW',t:'MCO',a:'WN', w:1},
+  // LAX
+  {f:'LAX',t:'JFK',a:'AAL',w:3},{f:'LAX',t:'ORD',a:'UAL',w:2},{f:'LAX',t:'SFO',a:'UAL',w:3},
+  {f:'LAX',t:'DFW',a:'AAL',w:2},{f:'LAX',t:'SEA',a:'ASA',w:3},{f:'LAX',t:'LHR',a:'BAW',w:2},
+  {f:'LAX',t:'NRT',a:'UAL',w:1},{f:'LAX',t:'MEX',a:'AAL',w:1},{f:'LAX',t:'ATL',a:'DAL',w:2},
+  {f:'LAX',t:'DEN',a:'UAL',w:2},{f:'LAX',t:'LAS',a:'WN', w:3},{f:'LAX',t:'PHX',a:'WN', w:2},
+  {f:'LAX',t:'SAN',a:'WN', w:3},{f:'LAX',t:'PDX',a:'ASA',w:2},{f:'LAX',t:'CDG',a:'AFR',w:1},
+  // JFK
+  {f:'JFK',t:'LAX',a:'JBU',w:3},{f:'JFK',t:'SFO',a:'JBU',w:2},{f:'JFK',t:'MIA',a:'AAL',w:3},
+  {f:'JFK',t:'ORD',a:'AAL',w:2},{f:'JFK',t:'ATL',a:'DAL',w:2},{f:'JFK',t:'LHR',a:'BAW',w:3},
+  {f:'JFK',t:'CDG',a:'AFR',w:2},{f:'JFK',t:'NRT',a:'JAL',w:1},{f:'JFK',t:'BOS',a:'JBU',w:2},
+  {f:'JFK',t:'DFW',a:'AAL',w:2},{f:'JFK',t:'MCO',a:'JBU',w:3},{f:'JFK',t:'GRU',a:'DAL',w:1},
+  {f:'JFK',t:'CUN',a:'JBU',w:2},{f:'JFK',t:'DEN',a:'UAL',w:1},{f:'JFK',t:'SEA',a:'JBU',w:1},
+  // MIA
+  {f:'MIA',t:'JFK',a:'AAL',w:3},{f:'MIA',t:'LAX',a:'AAL',w:2},{f:'MIA',t:'ORD',a:'AAL',w:2},
+  {f:'MIA',t:'ATL',a:'DAL',w:2},{f:'MIA',t:'LHR',a:'BAW',w:1},{f:'MIA',t:'CDG',a:'AAL',w:1},
+  {f:'MIA',t:'GRU',a:'AAL',w:1},{f:'MIA',t:'MEX',a:'AAL',w:1},{f:'MIA',t:'CUN',a:'AAL',w:2},
+  {f:'MIA',t:'MCO',a:'WN', w:2},{f:'MIA',t:'DFW',a:'AAL',w:2},{f:'MIA',t:'BOS',a:'JBU',w:1},
+  {f:'MIA',t:'NAS',a:'AAL',w:2},{f:'MIA',t:'MBJ',a:'AAL',w:1},{f:'MIA',t:'IAH',a:'UAL',w:1},
+  // SFO
+  {f:'SFO',t:'LAX',a:'UAL',w:3},{f:'SFO',t:'JFK',a:'UAL',w:2},{f:'SFO',t:'ORD',a:'UAL',w:2},
+  {f:'SFO',t:'SEA',a:'ASA',w:3},{f:'SFO',t:'DEN',a:'UAL',w:2},{f:'SFO',t:'LHR',a:'UAL',w:2},
+  {f:'SFO',t:'NRT',a:'UAL',w:1},{f:'SFO',t:'DFW',a:'AAL',w:1},{f:'SFO',t:'ATL',a:'DAL',w:1},
+  {f:'SFO',t:'PDX',a:'ASA',w:2},{f:'SFO',t:'SAN',a:'WN', w:2},{f:'SFO',t:'PHX',a:'WN', w:2},
+  {f:'SFO',t:'LAS',a:'UAL',w:2},{f:'SFO',t:'SJC',a:'WN', w:2},{f:'SFO',t:'CDG',a:'AFR',w:1},
+  // DEN
+  {f:'DEN',t:'LAX',a:'UAL',w:2},{f:'DEN',t:'SFO',a:'UAL',w:2},{f:'DEN',t:'ORD',a:'UAL',w:2},
+  {f:'DEN',t:'DFW',a:'UAL',w:1},{f:'DEN',t:'SEA',a:'UAL',w:2},{f:'DEN',t:'ATL',a:'FFT',w:1},
+  {f:'DEN',t:'PHX',a:'UAL',w:2},{f:'DEN',t:'LAS',a:'FFT',w:2},{f:'DEN',t:'JFK',a:'UAL',w:1},
+  {f:'DEN',t:'BOS',a:'UAL',w:1},{f:'DEN',t:'MSP',a:'DAL',w:1},{f:'DEN',t:'MIA',a:'UAL',w:1},
+  // SEA
+  {f:'SEA',t:'LAX',a:'ASA',w:3},{f:'SEA',t:'SFO',a:'ASA',w:3},{f:'SEA',t:'ORD',a:'UAL',w:2},
+  {f:'SEA',t:'DEN',a:'UAL',w:2},{f:'SEA',t:'JFK',a:'JBU',w:1},{f:'SEA',t:'LAS',a:'ASA',w:2},
+  {f:'SEA',t:'PHX',a:'ASA',w:2},{f:'SEA',t:'ATL',a:'DAL',w:1},{f:'SEA',t:'DFW',a:'AAL',w:1},
+  {f:'SEA',t:'PDX',a:'ASA',w:3},{f:'SEA',t:'YVR',a:'ACA',w:2},{f:'SEA',t:'NRT',a:'JAL',w:1},
+  // LAS
+  {f:'LAS',t:'LAX',a:'WN', w:3},{f:'LAS',t:'SFO',a:'WN', w:2},{f:'LAS',t:'SEA',a:'WN', w:2},
+  {f:'LAS',t:'PHX',a:'WN', w:2},{f:'LAS',t:'DEN',a:'UAL',w:2},{f:'LAS',t:'ORD',a:'UAL',w:2},
+  {f:'LAS',t:'ATL',a:'WN', w:2},{f:'LAS',t:'DFW',a:'AAL',w:1},{f:'LAS',t:'JFK',a:'JBU',w:1},
+  // PHX
+  {f:'PHX',t:'LAX',a:'WN', w:3},{f:'PHX',t:'SFO',a:'WN', w:2},{f:'PHX',t:'SEA',a:'ASA',w:2},
+  {f:'PHX',t:'ORD',a:'AAL',w:2},{f:'PHX',t:'DFW',a:'AAL',w:2},{f:'PHX',t:'ATL',a:'WN', w:2},
+  {f:'PHX',t:'DEN',a:'UAL',w:2},{f:'PHX',t:'LAS',a:'WN', w:2},{f:'PHX',t:'JFK',a:'AAL',w:1},
+  // BOS
+  {f:'BOS',t:'JFK',a:'JBU',w:2},{f:'BOS',t:'DCA',a:'JBU',w:2},{f:'BOS',t:'MIA',a:'JBU',w:2},
+  {f:'BOS',t:'MCO',a:'JBU',w:2},{f:'BOS',t:'ORD',a:'AAL',w:2},{f:'BOS',t:'ATL',a:'DAL',w:2},
+  {f:'BOS',t:'LHR',a:'BAW',w:2},{f:'BOS',t:'DFW',a:'AAL',w:1},{f:'BOS',t:'LAX',a:'JBU',w:1},
+  // CLT
+  {f:'CLT',t:'JFK',a:'AAL',w:2},{f:'CLT',t:'MIA',a:'AAL',w:2},{f:'CLT',t:'ORD',a:'AAL',w:2},
+  {f:'CLT',t:'ATL',a:'DAL',w:1},{f:'CLT',t:'DFW',a:'AAL',w:2},{f:'CLT',t:'LAX',a:'AAL',w:1},
+  {f:'CLT',t:'LHR',a:'BAW',w:1},{f:'CLT',t:'MCO',a:'AAL',w:2},{f:'CLT',t:'BOS',a:'AAL',w:1},
+  // MSP
+  {f:'MSP',t:'ORD',a:'DAL',w:2},{f:'MSP',t:'ATL',a:'DAL',w:2},{f:'MSP',t:'DEN',a:'DAL',w:1},
+  {f:'MSP',t:'JFK',a:'DAL',w:1},{f:'MSP',t:'LAX',a:'DAL',w:1},{f:'MSP',t:'DFW',a:'AAL',w:1},
+  {f:'MSP',t:'MCO',a:'DAL',w:2},{f:'MSP',t:'MIA',a:'DAL',w:1},{f:'MSP',t:'LAS',a:'WN', w:1},
+  // MCO
+  {f:'MCO',t:'JFK',a:'JBU',w:3},{f:'MCO',t:'BOS',a:'JBU',w:2},{f:'MCO',t:'ATL',a:'WN', w:3},
+  {f:'MCO',t:'MIA',a:'AAL',w:2},{f:'MCO',t:'ORD',a:'AAL',w:2},{f:'MCO',t:'DFW',a:'AAL',w:2},
+  {f:'MCO',t:'LAS',a:'WN', w:1},{f:'MCO',t:'MSP',a:'DAL',w:1},{f:'MCO',t:'DCA',a:'JBU',w:2},
+];
+
+// ── Math utilities ────────────────────────────────────────────
+function toRad(d) { return d * Math.PI / 180; }
+function toDeg(r) { return r * 180 / Math.PI; }
+
+function gcDistKm(lat1,lon1,lat2,lon2) {
+  var R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Spherical interpolation (slerp) along great circle
+function gcPoint(lat1,lon1,lat2,lon2,f) {
+  var d=gcDistKm(lat1,lon1,lat2,lon2)/6371;
+  if (d < 0.0001) return {lat:lat1,lon:lon1};
+  var sd=Math.sin(d);
+  var a=Math.sin((1-f)*d)/sd, b=Math.sin(f*d)/sd;
+  var la1=toRad(lat1),lo1=toRad(lon1),la2=toRad(lat2),lo2=toRad(lon2);
+  var x=a*Math.cos(la1)*Math.cos(lo1)+b*Math.cos(la2)*Math.cos(lo2);
+  var y=a*Math.cos(la1)*Math.sin(lo1)+b*Math.cos(la2)*Math.sin(lo2);
+  var z=a*Math.sin(la1)+b*Math.sin(la2);
+  return {lat:toDeg(Math.atan2(z,Math.sqrt(x*x+y*y))),lon:toDeg(Math.atan2(y,x))};
+}
+
+// Bearing from current position toward destination
+function gcBearing(lat1,lon1,lat2,lon2) {
+  var la1=toRad(lat1),lo1=toRad(lon1),la2=toRad(lat2),lo2=toRad(lon2);
+  var y=Math.sin(lo2-lo1)*Math.cos(la2);
+  var x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(lo2-lo1);
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+
+// ── Altitude model: climb → cruise → descent ─────────────────
+// Returns altitude in feet at fraction f of a route with distKm total length
+function modelAltFt(f, distKm) {
+  var maxAlt = distKm < 800 ? 28000 : distKm < 2000 ? 35000 : 39000;
+  // Climb: 0 → 0.18, Cruise: 0.18 → 0.82, Descent: 0.82 → 1.0
+  if (f < 0.18) return Math.round(maxAlt * (f / 0.18) * (1 + 0.05 * Math.random()));
+  if (f > 0.82) return Math.round(maxAlt * ((1-f) / 0.18) * (1 + 0.05 * Math.random()));
+  return Math.round(maxAlt * (0.94 + 0.06 * Math.random()));
+}
+
+// ── Speed model: based on phase ───────────────────────────────
+function modelSpeedKts(f, distKm) {
+  var cruiseSpd = distKm < 500 ? 380 : 460;
+  if (f < 0.12) return Math.round((180 + (cruiseSpd-180) * (f/0.12)) * (0.97 + 0.06*Math.random()));
+  if (f > 0.88) return Math.round((cruiseSpd - (cruiseSpd-160) * ((f-0.88)/0.12)) * (0.97 + 0.06*Math.random()));
+  return Math.round(cruiseSpd * (0.97 + 0.06 * Math.random()));
+}
+
+// ── Time-of-day traffic density multiplier ────────────────────
+function trafficDensity() {
+  var h = new Date().getHours() + new Date().getMinutes()/60;
+  if (h < 5)   return 0.15;
+  if (h < 7)   return 0.55;
+  if (h < 9)   return 1.00;
+  if (h < 11)  return 0.85;
+  if (h < 13)  return 0.75;
+  if (h < 15)  return 0.80;
+  if (h < 18)  return 0.95;
+  if (h < 20)  return 1.00;
+  if (h < 22)  return 0.70;
+  return 0.30;
+}
+
+// ── Fleet ─────────────────────────────────────────────────────
+var simFleet        = [];
+var simTimer        = null;
+var trafficMarkers  = {};
+var liveTrafficOn   = false;
+var _simUid         = 0;
+var selectedAirline = 'TOP';   // 'TOP' = auto-pick top airline, 'ALL' = all, or ICAO code
+
+// Expand every route into both directions
+function allDirections() {
+  var out = [];
+  ROUTES.forEach(function(r) {
+    out.push(r);
+    out.push({ f:r.t, t:r.f, a:r.a, w:r.w });
+  });
+  return out;
+}
+var ALL_ROUTES = allDirections(); // ~300 route-directions
+
+function spawnAircraft(r, fOverride) {
+  var src = AP[r.f], dst = AP[r.t];
+  if (!src || !dst) return null;
+  var distKm = gcDistKm(src.lat, src.lon, dst.lat, dst.lon);
+  var f      = (fOverride !== undefined) ? fOverride : Math.random();
+  var fA     = Math.min(f + 0.004, 0.999);
+  var pos    = gcPoint(src.lat, src.lon, dst.lat, dst.lon, f);
+  var ahead  = gcPoint(src.lat, src.lon, dst.lat, dst.lon, fA);
+  var spd    = modelSpeedKts(f, distKm);
+  return {
+    id:       ++_simUid,
+    callsign: r.a + String(100 + Math.floor(Math.random() * 900)),
+    airline:  r.a,
+    from:     r.f,
+    to:       r.t,
+    distKm:   distKm,
+    f:        f,
+    df:       (spd * 0.5144 * 2) / (distKm * 1000),
+    lat:      pos.lat,
+    lon:      pos.lon,
+    altFt:    modelAltFt(f, distKm),
+    speedKts: spd,
+    heading:  gcBearing(pos.lat, pos.lon, ahead.lat, ahead.lon),
+    onGround: false,
+  };
+}
+
+function buildFleet() {
+  var density = trafficDensity();
+  var fleet   = [];
+
+  // Populate every route-direction in the DB — both forward AND reverse
+  ALL_ROUTES.forEach(function(r) {
+    // Number of simultaneous aircraft on this lane (weight × density, min 1)
+    var count = Math.max(1, Math.round(r.w * density * 1.8));
+    for (var i = 0; i < count; i++) {
+      var ac = spawnAircraft(r);
+      if (ac) fleet.push(ac);
+    }
+  });
+
+  return fleet;
+}
+
+function tickFleet() {
+  var density = trafficDensity();
+  var target  = Math.round(ALL_ROUTES.length * density * 1.8);
+
+  simFleet = simFleet.filter(function(ac) {
+    ac.f += ac.df;
+    if (ac.f >= 1) return false;
+    var src = AP[ac.from], dst = AP[ac.to];
+    if (!src || !dst) return false;
+    var pos   = gcPoint(src.lat, src.lon, dst.lat, dst.lon, ac.f);
+    var fA    = Math.min(ac.f + 0.004, 0.999);
+    var ahead = gcPoint(src.lat, src.lon, dst.lat, dst.lon, fA);
+    ac.lat      = pos.lat;
+    ac.lon      = pos.lon;
+    ac.heading  = gcBearing(pos.lat, pos.lon, ahead.lat, ahead.lon);
+    ac.altFt    = modelAltFt(ac.f, ac.distKm);
+    ac.speedKts = modelSpeedKts(ac.f, ac.distKm);
+    return true;
+  });
+
+  // Respawn to maintain target density — spawn at origin (f≈0)
+  var deficit = target - simFleet.length;
+  for (var i = 0; i < Math.min(deficit, 6); i++) {
+    var r  = ALL_ROUTES[Math.floor(Math.random() * ALL_ROUTES.length)];
+    var ac = spawnAircraft(r, Math.random() * 0.04);
+    if (ac) simFleet.push(ac);
+  }
+}
+
+// ── Resolve which airline to display ─────────────────────────
+function resolvedAirline() {
+  if (selectedAirline === 'ALL') return 'ALL';
+  if (selectedAirline === 'TOP') {
+    var counts = airlineCounts();
+    var top = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; })[0];
+    return top || 'ALL';
+  }
+  return selectedAirline;
+}
+
+function airlineCounts() {
+  var c = {};
+  simFleet.forEach(function(a) { c[a.airline] = (c[a.airline]||0) + 1; });
+  return c;
+}
+
+function renderFleet() {
+  if (!mapsReady || !gmap) return;
+  var seen    = {};
+  var active  = resolvedAirline();
+
+  simFleet.forEach(function(ac) {
+    var visible = (active === 'ALL' || ac.airline === active);
+    seen[ac.id] = true;
+
+    if (trafficMarkers[ac.id]) {
+      if (visible) {
+        trafficMarkers[ac.id].setPosition({ lat: ac.lat, lng: ac.lon });
+        trafficMarkers[ac.id].setIcon(makePlaneIcon(ac.heading, airlineColor(ac.airline)));
+        trafficMarkers[ac.id].setMap(gmap);
+      } else {
+        trafficMarkers[ac.id].setMap(null);
+      }
+    } else if (visible) {
+      var mk = new google.maps.Marker({
+        position: { lat: ac.lat, lng: ac.lon },
+        map: gmap,
+        title: ac.callsign,
+        icon: makePlaneIcon(ac.heading, airlineColor(ac.airline)),
+        zIndex: 2,
+      });
+      (function(a, m) {
+        m.addListener('click', function() { openPlanePopup(a); });
+      })(ac, mk);
+      trafficMarkers[ac.id] = mk;
+    }
+  });
+
+  // Remove stale markers
+  Object.keys(trafficMarkers).forEach(function(id) {
+    if (!seen[id]) { trafficMarkers[id].setMap(null); delete trafficMarkers[id]; }
+  });
+
+  var visibleCount = simFleet.filter(function(a) { return active==='ALL'||a.airline===active; }).length;
+  updateTrafficCount(visibleCount);
+  buildLegend();
+  buildAirlineDropdown();
+}
+
+function mkStat(label, val) {
+  return '<div><div style="font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">'+label+'</div>'+
+         '<div style="font-size:13px;font-weight:700;font-family:\'Courier New\',monospace;">'+val+'</div></div>';
+}
+
+function buildLegend() {
+  var seen = {};
+  simFleet.forEach(function(a) { if (a.airline) seen[a.airline] = airlineColor(a.airline); });
+  var el = document.getElementById('airlineLegend');
+  if (!el) return;
+  el.innerHTML = Object.keys(seen).sort().map(function(code) {
+    return '<div class="legend-item">'+
+      '<span class="legend-dot" style="background:'+seen[code]+';"></span>'+
+      '<span class="legend-name">'+esc(airlineName(code))+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+function clearTrafficMarkers() {
+  Object.values(trafficMarkers).forEach(function(m){ m.setMap(null); });
+  trafficMarkers = {};
+  closePlanePanel();
+  simFleet = [];
+  var el = document.getElementById('airlineLegend');
+  if (el) el.innerHTML = '';
+}
+
+function updateTrafficCount(n) {
+  var el = document.getElementById('trafficCount');
+  if (el) el.textContent = n + ' aircraft';
+}
+
+function startLiveTraffic() {
+  if (liveTrafficOn) return;
+  liveTrafficOn = true;
+  simFleet = buildFleet();
+  renderFleet();
+  simTimer = setInterval(function() { tickFleet(); renderFleet(); }, 2000);
+  var btn = document.getElementById('trafficToggleBtn');
+  if (btn) { btn.textContent = '⏹ Hide Traffic'; btn.style.color = 'var(--safe)'; }
+}
+
+function stopLiveTraffic() {
+  liveTrafficOn = false;
+  clearInterval(simTimer);
+  clearTrafficMarkers();
+  updateTrafficCount(0);
+  var btn = document.getElementById('trafficToggleBtn');
+  if (btn) { btn.textContent = '✈ Show Live Traffic'; btn.style.color = ''; }
+}
+
+function toggleLiveTraffic() {
+  if (liveTrafficOn) { stopLiveTraffic(); } else { startLiveTraffic(); }
+}
+
+// ICAO airline code → { name, color }
+const AIRLINE_INFO = {
+  AAL: { name: 'American Airlines',   color: '#C8102E' },
+  UAL: { name: 'United Airlines',     color: '#005DAA' },
+  DAL: { name: 'Delta Air Lines',     color: '#7B3F9E' },
+  SWA: { name: 'Southwest Airlines',  color: '#F9A11B' },
+  JBU: { name: 'JetBlue',             color: '#00B2A9' },
+  ASA: { name: 'Alaska Airlines',     color: '#01426A' },
+  NKS: { name: 'Spirit Airlines',     color: '#FFD200' },
+  FFT: { name: 'Frontier Airlines',   color: '#5CA044' },
+  SKW: { name: 'SkyWest Airlines',    color: '#00529B' },
+  OO:  { name: 'SkyWest (OO)',         color: '#4A90D9' },
+  HAL: { name: 'Hawaiian Airlines',   color: '#E4003B' },
+  ENY: { name: 'Envoy Air',           color: '#00175B' },
+  EJA: { name: 'NetJets',             color: '#C8A96E' },
+  FDX: { name: 'FedEx',              color: '#FF6600' },
+  UPS: { name: 'UPS',                 color: '#351C15' },
+  WJA: { name: 'WestJet',             color: '#0047AB' },
+  ACA: { name: 'Air Canada',          color: '#F01428' },
+  BAW: { name: 'British Airways',     color: '#2B5899' },
+  DLH: { name: 'Lufthansa',           color: '#05164D' },
+  AFR: { name: 'Air France',          color: '#002395' },
+  KLM: { name: 'KLM',                 color: '#009FDF' },
+  IBE: { name: 'Iberia',              color: '#C8102E' },
+  QFA: { name: 'Qantas',              color: '#E8112D' },
+  SIA: { name: 'Singapore Airlines',  color: '#00387B' },
+  EIN: { name: 'Aer Lingus',          color: '#006837' },
+  EZY: { name: 'easyJet',             color: '#FF6600' },
+  RYR: { name: 'Ryanair',             color: '#073590' },
+  VIR: { name: 'Virgin Atlantic',     color: '#E1001A' },
+};
+
+function airlineColor(code) {
+  if (!code) return '#6B7A9C';
+  var info = AIRLINE_INFO[code.toUpperCase()];
+  return info ? info.color : '#6B7A9C';
+}
+function airlineName(code) {
+  if (!code) return 'Unknown';
+  var info = AIRLINE_INFO[code.toUpperCase()];
+  return info ? info.name : code;
+}
+
+// SVG plane icon — rotated to heading, colored by airline
+function makePlaneIcon(heading, color) {
+  var svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="-14 -14 28 28">' +
+    '<g transform="rotate(' + Math.round(heading) + ')">' +
+      '<circle cx="0" cy="0" r="11" fill="' + color + '" opacity="0.13"/>' +
+      '<polygon points="0,-3 -12,4 -10,7 0,3 10,7 12,4" fill="' + color + '" opacity="0.95"/>' +
+      '<polygon points="0,-13 2.5,-2 2.5,5 0,3.5 -2.5,5 -2.5,-2" fill="' + color + '"/>' +
+      '<polygon points="-2.5,3 -7,9 -6,11 0,7 6,11 7,9 2.5,3" fill="' + color + '" opacity="0.88"/>' +
+      '<ellipse cx="0" cy="-9" rx="1.1" ry="1.9" fill="rgba(255,255,255,0.5)"/>' +
+    '</g></svg>';
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(28, 28),
+    anchor:     new google.maps.Point(14, 14),
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+// PLANE INTERACTION  — quick popup + expandable side panel
+// ════════════════════════════════════════════════════════════════
+var panelOpen          = false;
+var _panelAc           = null;   // aircraft currently in view (popup or panel)
+var planeInfoWindow    = null;   // Google Maps InfoWindow for quick popup
+var planeRoutePolyline = null;
+var planeOriginMarker  = null;
+var planeDestMarker    = null;
+
+// ── Shared: draw great-circle arc + airport dots ─────────────
+function _drawRouteArc(ac) {
+  if (!mapsReady || !gmap) return;
+  if (planeRoutePolyline) { planeRoutePolyline.setMap(null); planeRoutePolyline = null; }
+  if (planeOriginMarker)  { planeOriginMarker.setMap(null);  planeOriginMarker  = null; }
+  if (planeDestMarker)    { planeDestMarker.setMap(null);    planeDestMarker    = null; }
+
+  var color = airlineColor(ac.airline);
+  var src   = AP[ac.from], dst = AP[ac.to];
+  if (!src || !dst) return;
+
+  var path = [];
+  for (var i = 0; i <= 80; i++) {
+    var pt = gcPoint(src.lat, src.lon, dst.lat, dst.lon, i / 80);
+    path.push({ lat: pt.lat, lng: pt.lon });
+  }
+  planeRoutePolyline = new google.maps.Polyline({
+    path: path, strokeColor: color, strokeOpacity: 0, strokeWeight: 2, map: gmap,
+    icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.45, strokeColor: color, scale: 3 }, offset: '0', repeat: '14px' }],
+    zIndex: 1,
+  });
+  planeOriginMarker = new google.maps.Marker({
+    position: { lat: src.lat, lng: src.lon }, map: gmap, title: ac.from,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: color, fillOpacity: 0.55, strokeColor: color, strokeWeight: 1.5 }, zIndex: 3,
+  });
+  planeDestMarker = new google.maps.Marker({
+    position: { lat: dst.lat, lng: dst.lon }, map: gmap, title: ac.to,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: color, fillOpacity: 0.30, strokeColor: color, strokeWeight: 1.5 }, zIndex: 3,
+  });
+}
+
+function _clearRouteArc() {
+  if (planeRoutePolyline) { planeRoutePolyline.setMap(null); planeRoutePolyline = null; }
+  if (planeOriginMarker)  { planeOriginMarker.setMap(null);  planeOriginMarker  = null; }
+  if (planeDestMarker)    { planeDestMarker.setMap(null);    planeDestMarker    = null; }
+}
+
+// ── Panel mini map ────────────────────────────────────────────
+var panelMiniMapInstance = null;
+var miniRoutePolyline    = null;
+var miniOriginMarker     = null;
+var miniDestMarker       = null;
+var miniPlaneMarker      = null;
+
+function _initMiniMap() {
+  if (panelMiniMapInstance || !mapsReady) return;
+  var el = document.getElementById('panelMiniMapCanvas');
+  if (!el) return;
+  panelMiniMapInstance = new google.maps.Map(el, {
+    zoom: 4,
+    center: { lat: 39.5, lng: -98.35 },
+    styles: MAP_DARK_STYLE,
+    disableDefaultUI: true,
+    gestureHandling: 'none',
+    draggable: false,
+    scrollwheel: false,
+    clickableIcons: false,
+    keyboardShortcuts: false,
+  });
+}
+
+function _updateMiniMap(ac) {
+  if (!mapsReady) return;
+  _initMiniMap();
+  if (!panelMiniMapInstance) return;
+
+  if (miniRoutePolyline) { miniRoutePolyline.setMap(null); miniRoutePolyline = null; }
+  if (miniOriginMarker)  { miniOriginMarker.setMap(null);  miniOriginMarker  = null; }
+  if (miniDestMarker)    { miniDestMarker.setMap(null);    miniDestMarker    = null; }
+  if (miniPlaneMarker)   { miniPlaneMarker.setMap(null);   miniPlaneMarker   = null; }
+
+  var color = airlineColor(ac.airline);
+  var src = AP[ac.from], dst = AP[ac.to];
+  if (!src || !dst) return;
+
+  var path = [];
+  for (var i = 0; i <= 80; i++) {
+    var pt = gcPoint(src.lat, src.lon, dst.lat, dst.lon, i / 80);
+    path.push({ lat: pt.lat, lng: pt.lon });
+  }
+
+  miniRoutePolyline = new google.maps.Polyline({
+    path: path, strokeColor: color, strokeOpacity: 0, strokeWeight: 2,
+    map: panelMiniMapInstance,
+    icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.6, strokeColor: color, scale: 2.5 }, offset: '0', repeat: '12px' }],
+    zIndex: 1,
+  });
+  miniOriginMarker = new google.maps.Marker({
+    position: { lat: src.lat, lng: src.lon }, map: panelMiniMapInstance, title: ac.from,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, fillColor: color, fillOpacity: 0.6, strokeColor: color, strokeWeight: 1.5 }, zIndex: 3,
+  });
+  miniDestMarker = new google.maps.Marker({
+    position: { lat: dst.lat, lng: dst.lon }, map: panelMiniMapInstance, title: ac.to,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, fillColor: color, fillOpacity: 0.35, strokeColor: color, strokeWeight: 1.5 }, zIndex: 3,
+  });
+  miniPlaneMarker = new google.maps.Marker({
+    position: { lat: ac.lat, lng: ac.lon }, map: panelMiniMapInstance,
+    icon: makePlaneIcon(ac.heading, color), zIndex: 5,
+  });
+
+  google.maps.event.trigger(panelMiniMapInstance, 'resize');
+  var bounds = new google.maps.LatLngBounds();
+  bounds.extend({ lat: src.lat, lng: src.lon });
+  bounds.extend({ lat: dst.lat, lng: dst.lon });
+  bounds.extend({ lat: ac.lat, lng: ac.lon });
+  panelMiniMapInstance.fitBounds(bounds, { top: 24, right: 16, bottom: 24, left: 16 });
+}
+
+function _clearMiniMap() {
+  if (miniRoutePolyline) { miniRoutePolyline.setMap(null); miniRoutePolyline = null; }
+  if (miniOriginMarker)  { miniOriginMarker.setMap(null);  miniOriginMarker  = null; }
+  if (miniDestMarker)    { miniDestMarker.setMap(null);    miniDestMarker    = null; }
+  if (miniPlaneMarker)   { miniPlaneMarker.setMap(null);   miniPlaneMarker   = null; }
+}
+
+// ── Quick popup (InfoWindow-style, on-map) ────────────────────
+function openPlanePopup(ac) {
+  _panelAc = ac;
+  var color      = airlineColor(ac.airline);
+  var phase      = ac.f < 0.18 ? 'climb' : ac.f > 0.82 ? 'descent' : 'cruise';
+  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase];
+  var pct        = Math.round(ac.f * 100);
+
+  var content =
+    '<div class="plane-popup">' +
+      '<div class="plane-popup-header">' +
+        '<button class="plane-popup-expand" onclick="expandToSidePanel()" title="Expand full view">⤢</button>' +
+        '<span class="plane-popup-callsign">' + esc(ac.callsign) + '</span>' +
+        '<button class="plane-popup-close" onclick="closePlanePopup()">×</button>' +
+      '</div>' +
+      '<div class="plane-popup-airline">' +
+        '<span class="plane-popup-dot" style="background:' + color + ';"></span>' +
+        esc(airlineName(ac.airline)) +
+      '</div>' +
+      '<div class="plane-popup-body">' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Route</span><span class="pp-val">' + esc(ac.from) + ' → ' + esc(ac.to) + '</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Phase</span><span class="pp-val">' + phaseLabel + '</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Altitude</span><span class="pp-val">' + ac.altFt.toLocaleString() + ' ft</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Speed</span><span class="pp-val">' + ac.speedKts + ' kts</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Heading</span><span class="pp-val">' + Math.round(ac.heading) + '°</span></div>' +
+        '<div class="plane-popup-row"><span class="pp-lbl">Route KM</span><span class="pp-val">' + Math.round(ac.distKm).toLocaleString() + '</span></div>' +
+      '</div>' +
+      '<div class="plane-popup-progress">' +
+        '<div class="plane-popup-progress-label"><span>' + esc(ac.from) + '</span><span style="color:#60a5fa;font-weight:700;">' + pct + '% complete</span><span>' + esc(ac.to) + '</span></div>' +
+        '<div class="plane-popup-progress-track"><div class="plane-popup-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+      '</div>' +
+    '</div>';
+
+  if (!planeInfoWindow) {
+    planeInfoWindow = new google.maps.InfoWindow({ disableAutoPan: false });
+    planeInfoWindow.addListener('closeclick', function() { _clearRouteArc(); _panelAc = null; });
+  }
+
+  planeInfoWindow.setContent(content);
+  planeInfoWindow.setPosition({ lat: ac.lat, lng: ac.lon });
+  planeInfoWindow.open(gmap);
+
+  _drawRouteArc(ac);
+  gmap.panTo({ lat: ac.lat, lng: ac.lon });
+}
+
+function closePlanePopup() {
+  if (planeInfoWindow) planeInfoWindow.close();
+  _clearRouteArc();
+  _panelAc = null;
+}
+
+// ── Expand: close popup, open full side panel ─────────────────
+function expandToSidePanel() {
+  if (!_panelAc) return;
+  var ac = _panelAc;
+  if (planeInfoWindow) planeInfoWindow.close();
+  openPlanePanel(ac);
+}
+
+// ── Full side panel (same detail, slide-in from left) ─────────
+function openPlanePanel(ac) {
+  _panelAc  = ac;
+  panelOpen = true;
+
+  var color      = airlineColor(ac.airline);
+  var phase      = ac.f < 0.18 ? 'climb' : ac.f > 0.82 ? 'descent' : 'cruise';
+  var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase];
+  var pct        = Math.round(ac.f * 100);
+
+  document.getElementById('planePanelContent').innerHTML =
+    '<div class="pp-airline-row">' +
+      '<span class="pp-dot" style="background:' + color + ';"></span>' +
+      '<span class="pp-airline-name">' + esc(airlineName(ac.airline)) + '</span>' +
+    '</div>' +
+    '<div class="pp-callsign">' + esc(ac.callsign) + '</div>' +
+    '<div class="pp-route">' +
+      '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac.from) + '</div></div>' +
+      '<span class="pp-arrow">✈ ──────</span>' +
+      '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac.to) + '</div></div>' +
+    '</div>' +
+    '<div class="pp-phase ' + phase + '">' + phaseLabel + '</div>' +
+    '<div class="pp-progress-wrap">' +
+      '<div class="pp-progress-label">' +
+        '<span>' + esc(ac.from) + '</span>' +
+        '<span style="color:var(--accent);font-weight:700;">' + pct + '% complete</span>' +
+        '<span>' + esc(ac.to) + '</span>' +
+      '</div>' +
+      '<div class="pp-progress-bar"><div class="pp-progress-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+    '</div>' +
+    '<div class="pp-stats">' +
+      '<div class="pp-stat"><div class="pp-stat-label">Altitude</div><div class="pp-stat-value">' + ac.altFt.toLocaleString() + ' ft</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Speed</div><div class="pp-stat-value">' + ac.speedKts + ' kts</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Heading</div><div class="pp-stat-value">' + Math.round(ac.heading) + '°</div></div>' +
+      '<div class="pp-stat"><div class="pp-stat-label">Route KM</div><div class="pp-stat-value">' + Math.round(ac.distKm).toLocaleString() + '</div></div>' +
+    '</div>';
+
+  document.getElementById('planePanel').classList.add('open');
+
+  // Route arc stays / gets drawn
+  _drawRouteArc(ac);
+  if (mapsReady && gmap) gmap.panTo({ lat: ac.lat, lng: ac.lon });
+
+  setTimeout(function() {
+    if (mapsReady && gmap) google.maps.event.trigger(gmap, 'resize');
+    _updateMiniMap(ac);
+  }, 400);
+}
+
+function closePlanePanel() {
+  document.getElementById('planePanel').classList.remove('open');
+  panelOpen = false;
+  _panelAc  = null;
+  _clearRouteArc();
+  _clearMiniMap();
+  setTimeout(function() {
+    if (mapsReady && gmap) google.maps.event.trigger(gmap, 'resize');
+  }, 380);
+}
+
+// ════════════════════════════════════════════════════════════════
+// AIRLINE DROPDOWN — sorted by count descending
+// ════════════════════════════════════════════════════════════════
+var _lastDropdownSig = '';
+
+function buildAirlineDropdown() {
+  var counts  = airlineCounts();
+  var sorted  = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; });
+  // Only rebuild DOM if the sorted list changed (avoid constant flicker)
+  var sig = sorted.join(',');
+  if (sig === _lastDropdownSig) return;
+  _lastDropdownSig = sig;
+
+  var sel     = document.getElementById('airlineFilterSelect');
+  var curVal  = sel.value;
+  var active  = resolvedAirline();
+
+  sel.innerHTML = '<option value="ALL">All Airlines ('+ simFleet.length +')</option>' +
+    sorted.map(function(code) {
+      return '<option value="'+code+'"'+(code===curVal?' selected':'')+'>'+
+        esc(airlineName(code))+' ('+counts[code]+')</option>';
+    }).join('');
+
+  // If 'TOP' mode and no explicit selection yet, pre-select the top airline
+  if (selectedAirline === 'TOP' && sorted.length) {
+    sel.value = sorted[0];
+    document.getElementById('afHint').textContent = 'Showing top airline · select to switch';
+  } else if (selectedAirline === 'ALL') {
+    sel.value = 'ALL';
+    document.getElementById('afHint').textContent = '';
+  } else {
+    sel.value = selectedAirline;
+    document.getElementById('afHint').textContent = (counts[selectedAirline]||0) + ' aircraft in sky';
+  }
+}
+
+function onAirlineFilter(val) {
+  selectedAirline = val;  // 'ALL' or ICAO code
+  document.getElementById('afHint').textContent =
+    val === 'ALL' ? '' : (airlineCounts()[val]||0) + ' aircraft in sky';
+  // Close panel if open (plane may not be visible anymore)
+  closePlanePanel();
+  renderFleet();
+}
+
+// ════════════════════════════════════════════════════════════════
+// INBOUND TRACKER
+// ════════════════════════════════════════════════════════════════
+function renderInboundTracker(data) {
+  const section = document.getElementById('inboundSection');
+  const card    = document.getElementById('inboundCard');
+  if (!data || !data.flightNumber) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+
+  const dep    = data.departure || {};
+  const arr    = data.arrival   || {};
+  const live   = data.live;
+  const status = (data.status || '').toLowerCase();
+  const risk   = (data.delayRisk && data.delayRisk.risk) || 'low';
+
+  // ── Determine state ────────────────────────────────────────
+  let state, emoji, headline, sub, adviceClass, advice;
+
+  if (status.includes('cancel')) {
+    state = 'delayed'; emoji = '🚫';
+    headline = 'Flight Cancelled';
+    sub = 'Your flight has been cancelled. Contact your airline.';
+    adviceClass = 'alert';
+    advice = '🚫 Do not head to the airport — contact your airline immediately.';
+
+  } else if (dep.actual && live && !live.isGround) {
+    // Has departed and airborne
+    state = 'airborne'; emoji = '✈️';
+    const origin = data.origin && data.origin.city ? data.origin.city.split(',')[0] : (data.origin && data.origin.iata) || '—';
+    const dest   = data.destination && data.destination.city ? data.destination.city.split(',')[0] : (data.destination && data.destination.iata) || '—';
+    headline = 'Your plane is airborne';
+    sub = 'Departed ' + esc(origin) + ' → en route to ' + esc(dest);
+    adviceClass = 'go';
+    advice = '✅ Your inbound aircraft is in the air — you\'re clear to leave as planned.';
+
+  } else if (dep.actual && (!live || live.isGround)) {
+    // Departed but no airborne live data (taxiing or recently departed)
+    state = 'airborne'; emoji = '🛫';
+    const origin = data.origin && data.origin.city ? data.origin.city.split(',')[0] : (data.origin && data.origin.iata) || '—';
+    headline = 'Plane departed — taxiing / climbing';
+    sub = 'Departed ' + esc(origin) + ', no live position yet';
+    adviceClass = 'go';
+    advice = '✅ Your plane has departed its origin — leave as scheduled.';
+
+  } else if (status.includes('landed') || (arr.actual && !dep.actual)) {
+    // Already arrived at your airport
+    state = 'landed'; emoji = '🛬';
+    headline = 'Your plane has arrived';
+    sub = 'Aircraft is on the ground at your airport';
+    adviceClass = 'go';
+    advice = '✅ Aircraft is at the gate — your flight will depart on schedule.';
+
+  } else if (risk === 'high' || status.includes('delay')) {
+    // Still at origin with high delay
+    state = 'delayed'; emoji = '⚠️';
+    const origin = data.origin && data.origin.city ? data.origin.city.split(',')[0] : (data.origin && data.origin.iata) || 'origin';
+    headline = 'Your plane has not left ' + esc(origin);
+    sub = data.delayRisk ? data.delayRisk.reason : 'Significant delay reported';
+    adviceClass = 'alert';
+    advice = '🚨 High delay risk — consider waiting before heading to the airport.';
+
+  } else {
+    // Scheduled / no departure yet
+    state = 'ground'; emoji = '🕐';
+    const origin = data.origin && data.origin.city ? data.origin.city.split(',')[0] : (data.origin && data.origin.iata) || 'origin';
+    headline = 'Plane is at ' + esc(origin);
+    const schTime = dep.scheduled ? fmt12(new Date(dep.scheduled)) : '';
+    sub = 'Scheduled departure' + (schTime ? ' at ' + schTime : '') + ' — not yet departed';
+    const depDelay = dep.delay || 0;
+    if (depDelay > 15) {
+      adviceClass = 'wait';
+      advice = '⚠️ Your plane is ' + depDelay + ' min behind schedule — monitor before leaving.';
+    } else {
+      adviceClass = 'wait';
+      advice = '⏳ Your plane hasn\'t departed yet — check back before heading out.';
+    }
+  }
+
+  // ── Flight progress (if airborne) ─────────────────────────
+  var progressHtml = '';
+  if (live && !live.isGround && data.origin && data.destination) {
+    const oLat = 0, oLon = 0; // ideally use origin coords
+    var pct = 0;
+    // Estimate progress from departure/arrival times
+    if (dep.actual && arr.scheduled) {
+      const total   = new Date(arr.scheduled).getTime() - new Date(dep.actual).getTime();
+      const elapsed = Date.now() - new Date(dep.actual).getTime();
+      pct = Math.min(95, Math.max(5, Math.round(elapsed / total * 100)));
+    }
+    progressHtml =
+      '<div class="inbound-progress-wrap">' +
+        '<div class="inbound-progress-label">' +
+          '<span>' + esc((data.origin && data.origin.iata) || '—') + '</span>' +
+          '<span style="font-weight:600;color:var(--accent);">' + pct + '% complete</span>' +
+          '<span>' + esc((data.destination && data.destination.iata) || '—') + '</span>' +
+        '</div>' +
+        '<div class="inbound-progress-bar"><div class="inbound-progress-fill" style="width:' + pct + '%;"></div></div>' +
+      '</div>';
+  }
+
+  // ── Stats ──────────────────────────────────────────────────
+  var statsHtml = '';
+  var statsItems = [];
+  if (live && live.altitude > 0) statsItems.push({ label: 'Altitude', value: live.altitude.toLocaleString() + ' ft' });
+  if (live && live.speed)        statsItems.push({ label: 'Speed',    value: Math.round(live.speed) + ' kts' });
+  if (dep.actual)                statsItems.push({ label: 'Departed', value: fmt12(new Date(dep.actual)) });
+  if (arr.scheduled)             statsItems.push({ label: 'ETA',      value: fmt12(new Date(arr.scheduled)) });
+  if (dep.delay && dep.delay > 0) statsItems.push({ label: 'Delay',   value: dep.delay + ' min' });
+  if (data.aircraft)             statsItems.push({ label: 'Aircraft', value: data.aircraft });
+
+  if (statsItems.length) {
+    statsHtml = '<div class="inbound-stats">' +
+      statsItems.map(function(s) {
+        return '<div class="inbound-stat"><div class="inbound-stat-label">' + s.label + '</div>' +
+               '<div class="inbound-stat-value">' + esc(s.value) + '</div></div>';
+      }).join('') +
+    '</div>';
+  }
+
+  card.innerHTML =
+    '<div class="inbound-status-row">' +
+      '<div class="inbound-indicator ' + state + '">' + emoji + '</div>' +
+      '<div class="inbound-main">' +
+        '<div class="inbound-headline">' + headline + '</div>' +
+        '<div class="inbound-sub">' + sub + '</div>' +
+      '</div>' +
+      '<div style="font-family:\'Courier New\',monospace;font-size:15px;font-weight:700;color:var(--accent);">' + esc(data.flightNumber) + '</div>' +
+    '</div>' +
+    '<div class="inbound-advice ' + adviceClass + '">' + advice + '</div>' +
+    statsHtml +
+    progressHtml;
+}
+
+// ════════════════════════════════════════════════════════════════
+// FLIGHT BOARD
+// ════════════════════════════════════════════════════════════════
+var boardData    = null;
+var currentTab   = 'dep';
+var highlightFlt = null;    // flight number to highlight in board
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabDep').classList.toggle('active', tab === 'dep');
+  document.getElementById('tabArr').classList.toggle('active', tab === 'arr');
+  document.getElementById('boardCityHeader').textContent = tab === 'dep' ? 'Destination' : 'Origin';
+  renderBoardRows();
+}
+
+async function loadBoard(iata) {
+  document.getElementById('boardAirportLabel').textContent = iata;
+  document.getElementById('boardLoading').style.display = 'flex';
+  document.getElementById('boardTable').style.display   = 'none';
+  document.getElementById('boardEmpty').style.display   = 'none';
+
+  try {
+    const res  = await fetch('/api/board?airportIata=' + iata);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    boardData = await res.json();
+
+    var mockBadge = document.getElementById('boardMockBadge');
+    mockBadge.style.display = boardData.mock ? 'inline-block' : 'none';
+  } catch (e) {
+    boardData = null;
+  }
+
+  document.getElementById('boardLoading').style.display = 'none';
+  renderBoardRows();
+}
+
+function fmtBoardTime(isoStr, delay) {
+  if (!isoStr) return '—';
+  var d = new Date(isoStr);
+  var h = d.getHours(), m = d.getMinutes();
+  var ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  var base = h + ':' + String(m).padStart(2,'0') + ' ' + ap;
+  return (delay && delay > 0) ? '<span class="bf-time delayed">' + base + ' +' + delay + 'm</span>' : base;
+}
+
+function renderBoardRows() {
+  const table = document.getElementById('boardTable');
+  const empty = document.getElementById('boardEmpty');
+  const rows  = document.getElementById('boardRows');
+
+  if (!boardData) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent   = 'Board unavailable — add AVIATIONSTACK_API_KEY to enable.';
+    return;
+  }
+
+  var flights = currentTab === 'dep' ? (boardData.departures || []) : (boardData.arrivals || []);
+  if (!flights.length) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent   = 'No flights found.';
+    return;
+  }
+
+  // Sort: scheduled time ascending
+  flights = flights.slice().sort(function(a, b) {
+    return new Date(a.scheduled).getTime() - new Date(b.scheduled).getTime();
+  });
+
+  var statusLabel = { scheduled:'Scheduled', active:'En Route', landed:'Landed', delayed:'Delayed', cancelled:'Cancelled' };
+
+  rows.innerHTML = flights.map(function(f) {
+    var isHighlight = highlightFlt && f.flightIata && f.flightIata.toUpperCase() === highlightFlt.toUpperCase();
+    var stClass = f.status in statusLabel ? f.status : 'scheduled';
+    var stText  = statusLabel[stClass] || capitalize(f.status || 'Scheduled');
+    var timeHtml = fmtBoardTime(f.estimated || f.scheduled, f.delay);
+    return (
+      '<div class="board-row' + (isHighlight ? ' highlight' : '') + '">' +
+        '<span class="bf-num">' + esc(f.flightIata || '—') + '</span>' +
+        '<span class="bf-airline">' + esc(f.airline || '—') + '</span>' +
+        '<span><span class="bf-city">' + esc(f.city || '—') + '</span> <span class="bf-city-iata">' + esc(f.cityIata || '') + '</span></span>' +
+        '<span class="bf-time">' + timeHtml + '</span>' +
+        '<span class="bf-gate">' + esc(f.gate || f.terminal || '—') + '</span>' +
+        '<span><span class="bf-status ' + stClass + '">' + stText + '</span></span>' +
+      '</div>'
+    );
+  }).join('');
+
+  table.style.display = 'block';
+  empty.style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+populateAirports();
+if (isPremium) {
+  // Restore premium UI state silently on reload
+  var _btn = document.querySelector('.btn-premium');
+  if (_btn) { _btn.textContent = '⚡ Premium Active'; _btn.classList.add('active'); _btn.onclick = null; }
+  document.querySelectorAll('.premium-pill').forEach(function(el) { el.style.display = 'none'; });
+  document.querySelectorAll('.feature-premium').forEach(function(el) { el.innerHTML = '<span style="color:var(--safe);">✓ Included</span>'; });
+}
+loadTerminals();
+loadGoogleMaps();
+loadBoard(document.getElementById('airportSelect').value || 'ATL');
+</script>
 </body>
 </html>
