@@ -86,7 +86,10 @@ async function fetchTsaWaitTimesApi(airportCode: string, apiKey: string): Promis
     if (!resp.ok) return null;
 
     const data    = (await resp.json()) as TsaApiResponse;
-    const minutes = data.rightnow ?? 0;
+    const minutes = data.rightnow;
+    // rightnow === 0 means the airport has no active reporting, not a genuine 0-min wait.
+    // Return null so the fallback chain (MyTSA → mock) can provide a real estimate.
+    if (!minutes) return null;
     await redis.setex(cacheKey, CACHE_TTL.TSA_RAW, minutes);
     return minutes;
   } catch {
@@ -122,8 +125,10 @@ async function fetchMyTsaWaitMinutes(airportCode: string): Promise<number | null
       return !isNaN(ts) && ts > cutoff;
     });
 
-    const source = recent.length ? recent : waitTimes.slice(0, 5);
-    if (!source.length) return null;
+    // If no reports in the last 2 hours, return null — stale overnight records
+    // are often all bucket '0' and would falsely report a 0-min wait.
+    if (!recent.length) return null;
+    const source = recent;
 
     const total   = source.reduce((sum, w) => sum + (MYTSA_BUCKET_MIDPOINTS[w.WaitTimeIndex] ?? 10), 0);
     const minutes = Math.round(total / source.length);

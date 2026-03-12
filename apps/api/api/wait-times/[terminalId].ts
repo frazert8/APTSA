@@ -68,10 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const result = computeWeightedWaitTime(enriched, tsaMinutes);
 
+  // Don't cache or persist a no_data zero — it would poison the cache for 60 s
+  // and make the UI display "0 min" instead of showing no estimate.
+  if (result.source === 'no_data') {
+    return res.status(200).json(result);
+  }
+
   await Promise.all([
     supabase.from('wait_time_snapshots').insert({
       terminal_id:      terminalId,
-      source:           result.source === 'no_data' ? 'tsa_official' : result.source,
+      source:           result.source,
       wait_minutes:     result.estimatedWaitMinutes,
       confidence_score: result.confidenceScore,
       sample_size:      result.sampleSize,
