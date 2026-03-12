@@ -2707,10 +2707,10 @@ function updateTrafficCount(n) {
 function startLiveTraffic() {
   if (liveTrafficOn) return;
   liveTrafficOn = true;
-  simFleet = [];
 
-  // Show loading state while waiting for first API response.
-  // Do NOT seed simulation — fake planes with fake DFW routes mislead users.
+  // Seed with simulation so the map isn't empty while the first API call is in flight.
+  // These are replaced with real OpenSky aircraft the moment live data arrives.
+  simFleet = buildFleet();
   _setLiveBadge('loading', 0, '');
   renderFleet();
 
@@ -2978,13 +2978,13 @@ function _clearMiniMap() {
 }
 
 // ── Helper: route row for popup ───────────────────────────────
-// Only shows a route once it has been confirmed by FlightAware.
-// Simulation aircraft show a "Demo" label; live aircraft show
-// "Looking up…" until _fetchAndPatchRoute() resolves.
+// Shows route immediately when available. FlightAware verification
+// updates it in the background if the initial data came from simulation.
 function _routeDisplay(ac) {
-  if (ac._routeVerified && ac.from && ac.to) return esc(ac.from) + ' → ' + esc(ac.to);
-  if (!ac.icao24) return '<span style="color:var(--muted);font-size:11px;">Demo flight</span>';
-  return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">Looking up route…</span>';
+  if (ac.from && ac.to) return esc(ac.from) + ' → ' + esc(ac.to);
+  if (ac._routeVerified) return '<span style="color:var(--muted);font-size:11px;">Route unknown</span>';
+  if (!ac.icao24) return '<span style="color:var(--muted);font-size:11px;">—</span>';
+  return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">Looking up…</span>';
 }
 
 // ── Verified progress % for live aircraft ─────────────────────
@@ -3067,11 +3067,11 @@ function openPlanePopup(ac) {
   var color      = airlineColor(ac.airline);
   var phase      = estimatePhase(ac);
   var phaseLabel = { climb: '↑ Climbing', cruise: '→ Cruising', descent: '↓ Descending' }[phase] || '→ Cruising';
-  // For live aircraft use time-based progress; for sim use route progress factor.
+  // Sim aircraft: use route progress factor. Live: time-based after FlightAware responds.
   var pct = ac._routeVerified ? _livePct(ac) : (typeof ac.f === 'number' ? Math.round(ac.f * 100) : null);
 
   var progressSection = '';
-  if (pct !== null && ac._routeVerified && ac.from && ac.to) {
+  if (pct !== null && ac.from && ac.to) {
     progressSection =
       '<div class="plane-popup-progress">' +
         '<div class="plane-popup-progress-label">' +
@@ -3114,10 +3114,10 @@ function openPlanePopup(ac) {
   planeInfoWindow.setPosition({ lat: ac.lat, lng: ac.lon });
   planeInfoWindow.open(gmap);
 
-  // Always verify route with FlightAware — _fetchAndPatchRoute is a no-op
-  // if already verified this session, and re-renders the popup when done.
+  // Kick off FlightAware verification in the background. Already verified = no-op.
+  // Re-renders popup with confirmed city names and time-based progress when done.
   _fetchAndPatchRoute(ac);
-  if (ac._routeVerified && ac.from && ac.to) _drawRouteArc(ac);
+  if (ac.from && ac.to) _drawRouteArc(ac);
   gmap.panTo({ lat: ac.lat, lng: ac.lon });
 }
 
@@ -3146,18 +3146,18 @@ function openPlanePanel(ac) {
   // Use time-based progress for verified live flights; sim progress factor otherwise.
   var pct = ac._routeVerified ? _livePct(ac) : (typeof ac.f === 'number' ? Math.round(ac.f * 100) : null);
 
-  // Route row: only show airport codes if FlightAware has confirmed them.
-  var routeRow = ac._routeVerified && ac.from && ac.to
+  // Route row: show immediately from any source; FlightAware updates city names in background.
+  var routeRow = ac.from && ac.to
     ? '<div class="pp-route">' +
         '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.from) + '</div><div class="pp-city">' + esc(ac._originCity || ac.from) + '</div></div>' +
         '<span class="pp-arrow">✈ ──────</span>' +
         '<div style="text-align:center;"><div class="pp-iata">' + esc(ac.to) + '</div><div class="pp-city">' + esc(ac._destCity || ac.to) + '</div></div>' +
       '</div>'
     : '<div class="pp-route"><span style="color:var(--muted);font-size:12px;text-align:center;width:100%;display:block;">' +
-        (!ac.icao24 ? 'Demo flight' : 'Looking up route…') +
+        (ac._routeVerified ? 'Route unknown' : (!ac.icao24 ? '—' : 'Looking up route…')) +
       '</span></div>';
 
-  var progressSection = pct !== null && ac._routeVerified && ac.from && ac.to
+  var progressSection = pct !== null && ac.from && ac.to
     ? '<div class="pp-progress-wrap">' +
         '<div class="pp-progress-label">' +
           '<span>' + esc(ac.from) + '</span>' +
@@ -3190,12 +3190,12 @@ function openPlanePanel(ac) {
 
   // Always verify with FlightAware — no-op if already verified this session.
   _fetchAndPatchRoute(ac);
-  if (ac._routeVerified && ac.from && ac.to) _drawRouteArc(ac);
+  if (ac.from && ac.to) _drawRouteArc(ac);
   if (mapsReady && gmap) gmap.panTo({ lat: ac.lat, lng: ac.lon });
 
   setTimeout(function() {
     if (mapsReady && gmap) google.maps.event.trigger(gmap, 'resize');
-    if (ac._routeVerified && ac.from && ac.to) _updateMiniMap(ac);
+    if (ac.from && ac.to) _updateMiniMap(ac);
   }, 400);
 }
 
