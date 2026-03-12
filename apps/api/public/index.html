@@ -2016,8 +2016,9 @@ function onAirportChange() {
   // and immediately fetch fresh data for the new airport.
   if (liveTrafficOn) {
     // Reset live state so we don't keep showing old airport's aircraft
-    liveApiMode  = false;
-    lastLiveIata = '';
+    liveApiMode        = false;
+    _hasEverSeenLive   = false;
+    lastLiveIata       = '';
     // Remove live aircraft (those with icao24) from simFleet; remove their map markers
     var liveIds = {};
     simFleet.forEach(function(ac) { if (ac.icao24) liveIds[ac.id] = true; });
@@ -2352,8 +2353,9 @@ var simTimer        = null;      // 2 s interpolation tick
 var liveTimer       = null;      // 20 s API poll
 var trafficMarkers  = {};
 var liveTrafficOn   = false;
-var liveApiMode     = false;     // true = real OpenSky data is active
-var lastLiveIata    = '';
+var liveApiMode        = false;  // true = real OpenSky data is active
+var _hasEverSeenLive   = false;  // once true, never fall back to simulation
+var lastLiveIata       = '';
 var _simUid         = 0;
 var selectedAirline = 'TOP';     // 'TOP' | 'ALL' | ICAO code
 var _lastSeenAt     = {};        // icao24 → timestamp for stale-aircraft eviction
@@ -2485,8 +2487,8 @@ function tickFleet() {
     }
   });
 
-  // Respawn simulated aircraft only in fallback (no live data) mode
-  if (!liveApiMode) {
+  // Respawn simulated aircraft only in pure fallback mode (never had live data)
+  if (!liveApiMode && !_hasEverSeenLive) {
     var density = trafficDensity();
     var target  = Math.round(ALL_ROUTES.length * density * 1.8);
     var deficit = target - simFleet.length;
@@ -2558,33 +2560,54 @@ function fetchLiveTraffic(iata) {
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(data) {
       if (data && Array.isArray(data.aircraft) && data.aircraft.length > 0) {
-        // Remove stale simulation aircraft before activating live mode
-        if (!liveApiMode) {
-          simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
-        }
-        liveApiMode = true;
+        // Clear ALL simulation aircraft unconditionally — never mix fake + real
+        simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
+        liveApiMode      = true;
+        _hasEverSeenLive = true;
         _mergeLiveData(data.aircraft);
         _setLiveBadge(true, data.count, iata);
       } else {
-        // API returned empty — keep whatever we have, flag as demo
-        if (!liveApiMode && simFleet.length === 0) simFleet = buildFleet();
-        _setLiveBadge(false, 0, iata);
+        // API responded but zero aircraft in bounding box right now.
+        // Keep existing live aircraft (they're still real); don't inject fake planes.
+        simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
+        if (_hasEverSeenLive) {
+          // We had real data before — show the aircraft still being dead-reckoned
+          _setLiveBadge(true, simFleet.length, iata);
+        } else {
+          _setLiveBadge('empty', 0, iata);
+        }
       }
     })
     .catch(function() {
-      if (!liveApiMode && simFleet.length === 0) simFleet = buildFleet();
-      _setLiveBadge(false, 0, iata);
+      // Network / API failure — only fall back to demo if we've never had real data
+      if (!_hasEverSeenLive) {
+        simFleet = buildFleet();
+        liveApiMode = false;
+        _setLiveBadge(false, 0, iata);
+      } else {
+        // Keep dead-reckoning existing real aircraft; mark as stale
+        _setLiveBadge('stale', simFleet.length, iata);
+      }
     });
 }
 
-function _setLiveBadge(isLive, count, iata) {
+function _setLiveBadge(state, count, iata) {
   var el = document.getElementById('liveDataBadge');
   if (!el) return;
-  if (isLive) {
+  if (state === true) {
     el.textContent = '● LIVE  ' + count + ' aircraft near ' + (iata || '');
     el.style.color = 'var(--safe)';
+  } else if (state === 'loading') {
+    el.textContent = '⟳ Fetching live traffic…';
+    el.style.color = 'var(--muted)';
+  } else if (state === 'empty') {
+    el.textContent = '● LIVE — No aircraft in range';
+    el.style.color = 'var(--safe)';
+  } else if (state === 'stale') {
+    el.textContent = '⚠ LIVE (reconnecting…) ' + count + ' aircraft';
+    el.style.color = '#f59e0b';
   } else {
-    el.textContent = '○ DEMO MODE';
+    el.textContent = '○ DEMO MODE — live data unavailable';
     el.style.color = 'var(--muted)';
   }
 }
@@ -2684,9 +2707,11 @@ function updateTrafficCount(n) {
 function startLiveTraffic() {
   if (liveTrafficOn) return;
   liveTrafficOn = true;
+  simFleet = [];
 
-  // Seed the map immediately with simulation while we wait for the first API call
-  simFleet = buildFleet();
+  // Show loading state while waiting for first API response.
+  // Do NOT seed simulation — fake planes with fake DFW routes mislead users.
+  _setLiveBadge('loading', 0, '');
   renderFleet();
 
   // Fire the first live-data fetch immediately
@@ -2707,8 +2732,9 @@ function startLiveTraffic() {
 }
 
 function stopLiveTraffic() {
-  liveTrafficOn = false;
-  liveApiMode   = false;
+  liveTrafficOn    = false;
+  liveApiMode      = false;
+  _hasEverSeenLive = false;
   if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
   clearInterval(simTimer);
   clearTrafficMarkers();

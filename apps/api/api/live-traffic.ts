@@ -180,11 +180,21 @@ function resolveAirline(callsign: string): string {
   return '';
 }
 
-function parseState(s: unknown[]): Aircraft | null {
+function parseState(s: unknown[], now: number): Aircraft | null {
   if (!Array.isArray(s)) return null;
   const lon = s[5] as number | null;
   const lat = s[6] as number | null;
   if (lon == null || lat == null) return null;
+
+  // [3] time_position: Unix timestamp of last position fix.
+  // [4] last_contact:  Unix timestamp of last any-message contact.
+  // Drop vectors whose last position fix is stale (> 2 min old) — these
+  // are dead entries OpenSky hasn't pruned yet.
+  const timePosRaw   = s[3] as number | null;
+  const lastContact  = s[4] as number | null;
+  const freshEnough  = timePosRaw != null && (now / 1000 - timePosRaw) < 120;
+  const contactFresh = lastContact != null && (now / 1000 - lastContact) < 120;
+  if (!freshEnough && !contactFresh) return null;
 
   const icao24    = String(s[0] ?? '').toLowerCase();
   const callsign  = String(s[1] ?? '').trim().toUpperCase();
@@ -203,9 +213,9 @@ function parseState(s: unknown[]): Aircraft | null {
 
   // Filter strategy:
   //  - Keep all airborne aircraft (onGround === false)
-  //  - Keep low-altitude moving aircraft (takeoff / approach / go-around)
+  //  - Keep moving ground traffic (taxi/takeoff roll: speedKts >= 20)
   //  - Drop parked / fully stationary ground traffic (clutters the map)
-  const isMovingOnGround = onGround && speedKts >= 30;
+  const isMovingOnGround = onGround && speedKts >= 20;
   const isAirborne       = !onGround;
   if (!isAirborne && !isMovingOnGround) return null;
 
@@ -248,10 +258,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(cached);
   }
 
-  // ── Bounding box: ±2.5° ≈ 175 mi radius ─────────────────────
-  // Larger than the old ±2.0° to capture more en-route traffic
-  // and aircraft on long final approach tracks.
-  const R     = 2.5;
+  // ── Bounding box: ±3.0° ≈ 210 mi radius ─────────────────────
+  // Wide enough to capture aircraft on long final approach tracks,
+  // holding patterns, and en-route traffic transitioning the airspace.
+  const R     = 3.0;
   const lamin = coords.lat - R;
   const lamax = coords.lat + R;
   const lomin = coords.lon - R;
@@ -282,24 +292,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const json   = (await resp.json()) as { states?: unknown[][] };
     const states = json.states ?? [];
 
-    // Parse all states, then sort by closest to airport center so
-    // the most relevant aircraft survive the cap.
+    const now = Date.now();
+
+    // Parse all states — pass current timestamp for freshness filtering.
     const parsed = states
-      .map(parseState)
+      .map((s) => parseState(s, now))
       .filter((a): a is Aircraft => a !== null);
 
-    // Sort: airborne first, then by proximity to the airport
-    const sorted = parsed.sort((a, b) => {
+    // Sort: airborne first, then by proximity to the airport.
+    // No hard cap — return every valid aircraft in the bounding box.
+    const aircraft = parsed.sort((a, b) => {
       const aDist = Math.hypot(a.lat - coords.lat, a.lon - coords.lon);
       const bDist = Math.hypot(b.lat - coords.lat, b.lon - coords.lon);
-      // Airborne before ground movers, then by proximity
       if (a.onGround !== b.onGround) return a.onGround ? 1 : -1;
       return aDist - bDist;
     });
-
-    // Cap at 400 — up from 120.  At busy hubs (ATL, ORD) there can be
-    // 250–350 aircraft within 175 mi; we want to show them all.
-    const aircraft = sorted.slice(0, 400);
 
     const result: LiveTrafficData = {
       iata,
