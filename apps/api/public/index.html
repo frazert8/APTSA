@@ -2557,35 +2557,39 @@ function _mergeLiveData(incoming) {
 function fetchLiveTraffic(iata) {
   if (!iata || !liveTrafficOn) return;
   fetch('/api/live-traffic?airportIata=' + encodeURIComponent(iata))
-    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(r) {
+      if (r.status === 429) return Promise.reject('rate_limited');
+      return r.ok ? r.json() : Promise.reject('http_' + r.status);
+    })
     .then(function(data) {
       if (data && Array.isArray(data.aircraft) && data.aircraft.length > 0) {
-        // Clear ALL simulation aircraft unconditionally — never mix fake + real
+        // Clear ALL simulation aircraft — never mix fake + real
         simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
         liveApiMode      = true;
         _hasEverSeenLive = true;
         _mergeLiveData(data.aircraft);
         _setLiveBadge(true, data.count, iata);
       } else {
-        // API responded but zero aircraft in bounding box right now.
-        // Keep existing live aircraft (they're still real); don't inject fake planes.
+        // API worked but zero commercial aircraft in bounding box.
+        // Keep existing live aircraft already being dead-reckoned.
         simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
-        if (_hasEverSeenLive) {
-          // We had real data before — show the aircraft still being dead-reckoned
-          _setLiveBadge(true, simFleet.length, iata);
-        } else {
-          _setLiveBadge('empty', 0, iata);
-        }
+        _setLiveBadge(_hasEverSeenLive ? true : 'empty', simFleet.length, iata);
       }
     })
-    .catch(function() {
-      // Network / API failure — only fall back to demo if we've never had real data
+    .catch(function(reason) {
+      if (reason === 'rate_limited') {
+        // OpenSky quota exhausted — keep showing whatever real aircraft we have.
+        // Never inject simulation when rate limited; show a clear message.
+        _setLiveBadge('rate_limited', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata);
+        return;
+      }
+      // True network/server failure — fall back to simulation only if we have
+      // never seen real data AND it's a complete outage (not just rate limit).
       if (!_hasEverSeenLive) {
         simFleet = buildFleet();
         liveApiMode = false;
         _setLiveBadge(false, 0, iata);
       } else {
-        // Keep dead-reckoning existing real aircraft; mark as stale
         _setLiveBadge('stale', simFleet.length, iata);
       }
     });
@@ -2605,6 +2609,11 @@ function _setLiveBadge(state, count, iata) {
     el.style.color = 'var(--safe)';
   } else if (state === 'stale') {
     el.textContent = '⚠ LIVE (reconnecting…) ' + count + ' aircraft';
+    el.style.color = '#f59e0b';
+  } else if (state === 'rate_limited') {
+    el.textContent = count > 0
+      ? '⚠ Rate limited — showing ' + count + ' cached aircraft'
+      : '⚠ OpenSky rate limit reached — try again later';
     el.style.color = '#f59e0b';
   } else {
     el.textContent = '○ DEMO MODE — live data unavailable';
@@ -2707,10 +2716,11 @@ function updateTrafficCount(n) {
 function startLiveTraffic() {
   if (liveTrafficOn) return;
   liveTrafficOn = true;
+  simFleet = [];
 
-  // Seed with simulation so the map isn't empty while the first API call is in flight.
-  // These are replaced with real OpenSky aircraft the moment live data arrives.
-  simFleet = buildFleet();
+  // Start with an empty map and a loading indicator.
+  // Simulation is only seeded in fetchLiveTraffic() if the network call
+  // completely fails — never mixed with real OpenSky data.
   _setLiveBadge('loading', 0, '');
   renderFleet();
 
@@ -2987,13 +2997,15 @@ function _routeDisplay(ac) {
   return '<span id="ppRouteLive" style="color:var(--muted);font-size:11px;">Looking up…</span>';
 }
 
-// ── Verified progress % for live aircraft ─────────────────────
-// Uses actual departure / scheduled arrival times returned by
-// FlightAware so the progress bar reflects real elapsed time.
+// ── Progress % for live aircraft ─────────────────────────────
+// Priority: FlightAware dep/arr times → ML geometric fraction → null
 function _livePct(ac) {
-  if (!ac._depTime || !ac._arrTime || ac._arrTime <= ac._depTime) return null;
-  var pct = Math.round((Date.now() - ac._depTime) / (ac._arrTime - ac._depTime) * 100);
-  return Math.max(0, Math.min(100, pct));
+  if (ac._depTime && ac._arrTime && ac._arrTime > ac._depTime) {
+    var pct = Math.round((Date.now() - ac._depTime) / (ac._arrTime - ac._depTime) * 100);
+    return Math.max(0, Math.min(100, pct));
+  }
+  if (typeof ac._mlPct === 'number') return ac._mlPct;
+  return null;
 }
 
 // ── Async route lookup with FlightAware verification ──────────
@@ -3013,29 +3025,24 @@ function _fetchAndPatchRoute(ac) {
 
   fetch('/api/flight-status?flight=' + encodeURIComponent(cs))
     .then(function(r) {
-      // 404 means FlightAware has no record — mark as verified-unknown so
-      // we don't re-fetch on every subsequent click.
-      if (r.status === 404) { ac._routeVerified = true; return null; }
-      return r.ok ? r.json() : null;
+      if (r.status === 404) return Promise.reject('fa_404');
+      return r.ok ? r.json() : Promise.reject('fa_err');
     })
     .then(function(d) {
-      if (!d || d.mock || d.source === 'demo' || d.error) {
-        // Demo/mock fallback — don't display as real route
-        return;
-      }
+      if (!d || d.mock || d.source === 'demo' || d.error) return Promise.reject('fa_demo');
 
       var ori  = d.origin      && d.origin.iata;
       var dest = d.destination && d.destination.iata;
-      if (!ori || !dest) return;
+      if (!ori || !dest) return Promise.reject('fa_noroute');
 
-      // Mark route as verified — this is real FlightAware data
+      // FlightAware confirmed — mark as verified
       ac._routeVerified = true;
+      ac._routeSource   = 'flightaware';
       ac.from           = ori;
       ac.to             = dest;
       ac._originCity    = (d.origin.city  || ori);
       ac._destCity      = (d.destination.city || dest);
 
-      // Store departure / arrival timestamps for time-based progress bar
       var depStr = d.departure && (d.departure.actual || d.departure.scheduled);
       var arrStr = d.arrival   && (d.arrival.scheduled || d.arrival.actual);
       if (depStr) ac._depTime = new Date(depStr).getTime();
@@ -3044,20 +3051,73 @@ function _fetchAndPatchRoute(ac) {
       if (AP[ori] && AP[dest]) {
         ac.distKm = gcDistKm(AP[ori].lat, AP[ori].lon, AP[dest].lat, AP[dest].lon);
       }
-
-      // Re-render the open popup / panel with verified data
-      if (_panelAc && _panelAc.icao24 === ac.icao24) {
-        if (panelOpen) {
-          openPlanePanel(ac);   // full re-render
-        } else {
-          openPlanePopup(ac);   // re-render quick popup
-        }
+      _patchOpenPopup(ac);
+      _drawRouteArc(ac);
+    })
+    .catch(function(reason) {
+      if (reason === 'fa_404' || reason === 'fa_demo' || reason === 'fa_noroute') {
+        // FlightAware has no record — try the geometric ML predictor
+        _mlPredictRoute(ac);
       }
+      // fa_err or network failure: leave as "Looking up…", retry next click
+    });
+}
 
+// ── Re-render whichever popup/panel is open for this aircraft ─
+function _patchOpenPopup(ac) {
+  if (!_panelAc || _panelAc.icao24 !== ac.icao24) return;
+  if (panelOpen) openPlanePanel(ac); else openPlanePopup(ac);
+}
+
+// ── Geometric ML route predictor (FlightAware fallback) ───────
+// Calls /api/predict-route which scores all airport pairs using
+// cross-track distance, heading match, altitude, and airline affinity.
+function _mlPredictRoute(ac) {
+  if (!ac.icao24) return;
+  if (ac._mlAttempted) return;   // only try once per aircraft
+  ac._mlAttempted = true;
+
+  var url = '/api/predict-route?callsign=' + encodeURIComponent(ac.callsign || '') +
+            '&lat='     + ac.lat +
+            '&lon='     + ac.lon +
+            '&heading=' + (ac.heading || 0) +
+            '&alt='     + (ac.altFt || 0);
+
+  fetch(url)
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(d) {
+      if (!d || !d.predictions || !d.predictions.length) {
+        // ML has no confident prediction — mark as verified-unknown
+        ac._routeVerified = true;
+        _patchOpenPopup(ac);
+        return;
+      }
+      var best = d.predictions[0];
+      if (best.confidence < 40) {
+        // Low confidence — show nothing rather than a wrong route
+        ac._routeVerified = true;
+        _patchOpenPopup(ac);
+        return;
+      }
+      ac._routeVerified = true;
+      ac._routeSource   = 'ml';
+      ac.from           = best.from;
+      ac.to             = best.to;
+      ac._originCity    = best.from;
+      ac._destCity      = best.to;
+      // Use ML-derived path fraction for progress bar
+      if (!ac._depTime) {
+        ac._mlPct = best.pct;
+      }
+      if (AP[best.from] && AP[best.to]) {
+        ac.distKm = gcDistKm(AP[best.from].lat, AP[best.from].lon,
+                              AP[best.to].lat,   AP[best.to].lon);
+      }
+      _patchOpenPopup(ac);
       _drawRouteArc(ac);
     })
     .catch(function() {
-      // Network error — don't mark as verified; will retry next click
+      ac._routeVerified = true;  // don't retry
     });
 }
 
@@ -3191,6 +3251,8 @@ function openPlanePanel(ac) {
       '<span class="pp-dot" style="background:' + color + ';"></span>' +
       '<span class="pp-airline-name">' + esc(airlineName(ac.airline)) + '</span>' +
       (ac.icao24 ? '<span style="font-size:10px;color:var(--muted);margin-left:auto;font-family:monospace;">' + esc(ac.icao24.toUpperCase()) + '</span>' : '') +
+      (ac._routeSource === 'ml' ? '<span style="font-size:9px;color:#f59e0b;margin-left:6px;letter-spacing:0.5px;">ML PREDICTED</span>' : '') +
+      (ac._routeSource === 'flightaware' ? '<span style="font-size:9px;color:var(--safe);margin-left:6px;letter-spacing:0.5px;">LIVE</span>' : '') +
     '</div>' +
     '<div class="pp-callsign">' + esc(ac.callsign) + '</div>' +
     routeRow +
