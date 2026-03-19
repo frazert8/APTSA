@@ -4,9 +4,10 @@
 // GET /api/board?airportIata=ATL
 //
 // Priority chain:
-//   1. AviationStack live API (if key present and returns data)
-//   2. Simulated board — airport-specific hub routes, high-demand
-//      airlines, time-seeded so flights feel current & realistic
+//   1. AviationStack live API (if key present and returns ≥1 result)
+//   2. Airline-accurate simulated board — each carrier only flies
+//      routes it actually operates (WN=DAL not DFW, no Spirit to
+//      London, no JetBlue at DFW, international carriers at hubs only)
 //
 // Env: AVIATIONSTACK_API_KEY (optional)
 // ============================================================
@@ -14,47 +15,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { redis } from '../src/lib/redis.js';
 
-// ── AviationStack flight shape (fields we use) ──────────────
+// ── AviationStack flight shape ───────────────────────────────
 interface AsFlight {
   flight_status: string;
-  departure: {
-    airport:   string;
-    iata:      string;
-    scheduled: string;
-    estimated: string;
-    actual:    string | null;
-    delay:     number | null;
-    terminal:  string | null;
-    gate:      string | null;
-  };
-  arrival: {
-    airport:   string;
-    iata:      string;
-    scheduled: string;
-    estimated: string;
-    actual:    string | null;
-    delay:     number | null;
-    terminal:  string | null;
-    gate:      string | null;
-  };
+  departure: { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null; terminal: string | null; gate: string | null };
+  arrival:   { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null; terminal: string | null; gate: string | null };
   airline: { name: string; iata: string };
   flight:  { iata: string; number: string };
 }
 
-// ── Normalised row returned to the client ───────────────────
 export interface FlightRow {
-  flightIata: string;
-  airline:    string;
+  flightIata:  string;
+  airline:     string;
   airlineIata: string;
-  city:       string;
-  cityIata:   string;
-  scheduled:  string;
-  estimated:  string;
-  actual:     string | null;
-  status:     string;
-  delay:      number | null;
-  terminal:   string | null;
-  gate:       string | null;
+  city:        string;
+  cityIata:    string;
+  scheduled:   string;
+  estimated:   string;
+  actual:      string | null;
+  status:      string;
+  delay:       number | null;
+  terminal:    string | null;
+  gate:        string | null;
 }
 
 export interface BoardData {
@@ -62,285 +44,298 @@ export interface BoardData {
   departures: FlightRow[];
   arrivals:   FlightRow[];
   cachedAt:   string;
-  mock:       boolean;  // true = simulated data
+  mock:       boolean;
 }
 
-// ── High-demand airlines ────────────────────────────────────
-// Domestic + international carriers with highest passenger volume
-interface Airline { name: string; iata: string; flightBase: number }
-
-const AIRLINES: Airline[] = [
-  { name: 'American Airlines', iata: 'AA', flightBase: 100 },
-  { name: 'Delta Air Lines',   iata: 'DL', flightBase: 200 },
-  { name: 'United Airlines',   iata: 'UA', flightBase: 300 },
-  { name: 'Southwest Airlines',iata: 'WN', flightBase: 400 },
-  { name: 'Alaska Airlines',   iata: 'AS', flightBase: 200 },
-  { name: 'JetBlue Airways',   iata: 'B6', flightBase: 600 },
-  { name: 'Spirit Airlines',   iata: 'NK', flightBase: 500 },
-  { name: 'British Airways',   iata: 'BA', flightBase: 100 },
-  { name: 'Lufthansa',         iata: 'LH', flightBase: 400 },
-  { name: 'Air France',        iata: 'AF', flightBase: 100 },
-  { name: 'Qatar Airways',     iata: 'QR', flightBase: 300 },
-  { name: 'Emirates',          iata: 'EK', flightBase: 200 },
-];
-
-// ── Airport hub route maps ───────────────────────────────────
-// Each entry lists the most common city-pairs for that hub.
-// Airlines are weighted toward each hub's dominant carrier.
+// ── Route type ───────────────────────────────────────────────
 interface Route { city: string; iata: string }
 
-const HUB_ROUTES: Record<string, Route[]> = {
-  DFW: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'Miami',           iata: 'MIA' },
-    { city: "Chicago O'Hare", iata: 'ORD' }, { city: 'New York JFK',    iata: 'JFK' },
-    { city: 'Denver',         iata: 'DEN' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Seattle',        iata: 'SEA' }, { city: 'Phoenix',         iata: 'PHX' },
-    { city: 'Houston',        iata: 'IAH' }, { city: 'Las Vegas',       iata: 'LAS' },
-    { city: 'New York LGA',   iata: 'LGA' }, { city: 'Washington DC',   iata: 'DCA' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Charlotte',       iata: 'CLT' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Cancun',          iata: 'CUN' },
+// ── Airline-specific route networks ─────────────────────────
+//
+// Every airline here only contains destinations it *actually* serves.
+// Key real-world constraints encoded:
+//
+//  WN (Southwest) — domestic US + select Caribbean/Mexico only.
+//     Uses secondary airports: DAL (not DFW), MDW (not ORD),
+//     HOU (not IAH), BWI (not DCA), FLL (not MIA), LGA (not JFK).
+//     No transatlantic, no Europe, no Asia.
+//
+//  NK (Spirit) — ULCC domestic US + Caribbean/Latin America only.
+//     No transatlantic routes whatsoever.
+//
+//  AS (Alaska) — West-coast focused domestic + Mexico/Hawaii.
+//     Very limited transatlantic (none simulated here).
+//
+//  B6 (JetBlue) — domestic + Caribbean. DOES fly transatlantic
+//     since 2021 (LHR, CDG, AMS only from JFK/BOS). Does NOT serve DFW.
+//
+//  BA/LH/AF/QR/EK — international carriers; only at major
+//     international gateways (JFK, LAX, ORD, MIA, IAH, SFO, BOS, ATL, DFW, SEA).
+//
+// ────────────────────────────────────────────────────────────
+
+const AIRLINE_ROUTES: Record<string, Route[]> = {
+
+  // American Airlines — full network, global
+  AA: [
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'New York JFK',     iata: 'JFK' },
+    { city: 'Chicago O\'Hare',  iata: 'ORD' }, { city: 'Miami',            iata: 'MIA' },
+    { city: 'Denver',           iata: 'DEN' }, { city: 'Seattle',          iata: 'SEA' },
+    { city: 'Phoenix',          iata: 'PHX' }, { city: 'Charlotte',        iata: 'CLT' },
+    { city: 'Philadelphia',     iata: 'PHL' }, { city: 'Boston',           iata: 'BOS' },
+    { city: 'Washington DC',    iata: 'DCA' }, { city: 'Las Vegas',        iata: 'LAS' },
+    { city: 'Atlanta',          iata: 'ATL' }, { city: 'Dallas/Fort Worth',iata: 'DFW' },
+    { city: 'Houston',          iata: 'IAH' }, { city: 'San Francisco',    iata: 'SFO' },
+    { city: 'London Heathrow',  iata: 'LHR' }, { city: 'Madrid',           iata: 'MAD' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Mexico City',      iata: 'MEX' },
+    { city: 'São Paulo GRU',    iata: 'GRU' }, { city: 'Buenos Aires',     iata: 'EZE' },
+    { city: 'Tokyo Narita',     iata: 'NRT' }, { city: 'Paris CDG',        iata: 'CDG' },
   ],
-  ATL: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Los Angeles',     iata: 'LAX' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Dallas/Fort Worth',iata: 'DFW'},
-    { city: 'Miami',          iata: 'MIA' }, { city: 'Denver',          iata: 'DEN' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Seattle',         iata: 'SEA' },
-    { city: 'Orlando',        iata: 'MCO' }, { city: 'Las Vegas',       iata: 'LAS' },
-    { city: 'Washington DC',  iata: 'DCA' }, { city: 'Philadelphia',    iata: 'PHL' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Amsterdam',       iata: 'AMS' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'San Juan',        iata: 'SJU' },
+
+  // Delta Air Lines — full network, global
+  DL: [
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'New York JFK',     iata: 'JFK' },
+    { city: 'Chicago O\'Hare',  iata: 'ORD' }, { city: 'Boston',           iata: 'BOS' },
+    { city: 'Miami',            iata: 'MIA' }, { city: 'Denver',           iata: 'DEN' },
+    { city: 'Seattle',          iata: 'SEA' }, { city: 'Minneapolis',      iata: 'MSP' },
+    { city: 'Detroit',          iata: 'DTW' }, { city: 'Salt Lake City',   iata: 'SLC' },
+    { city: 'Las Vegas',        iata: 'LAS' }, { city: 'San Francisco',    iata: 'SFO' },
+    { city: 'Dallas/Fort Worth',iata: 'DFW' }, { city: 'Washington DC',    iata: 'DCA' },
+    { city: 'Philadelphia',     iata: 'PHL' }, { city: 'Houston',          iata: 'IAH' },
+    { city: 'London Heathrow',  iata: 'LHR' }, { city: 'Amsterdam',        iata: 'AMS' },
+    { city: 'Paris CDG',        iata: 'CDG' }, { city: 'Tokyo Narita',     iata: 'NRT' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'São Paulo GRU',    iata: 'GRU' },
+    { city: 'Mexico City',      iata: 'MEX' }, { city: 'Frankfurt',        iata: 'FRA' },
   ],
-  LAX: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Chicago',         iata: 'ORD' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Seattle',        iata: 'SEA' }, { city: 'Las Vegas',       iata: 'LAS' },
-    { city: 'San Francisco',  iata: 'SFO' }, { city: 'Denver',          iata: 'DEN' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Tokyo Narita',    iata: 'NRT' },
-    { city: 'Sydney',         iata: 'SYD' }, { city: 'Cancun',          iata: 'CUN' },
-    { city: 'Mexico City',    iata: 'MEX' }, { city: 'Paris CDG',       iata: 'CDG' },
+
+  // United Airlines — full network, global
+  UA: [
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'New York Newark',  iata: 'EWR' },
+    { city: 'Chicago O\'Hare',  iata: 'ORD' }, { city: 'San Francisco',    iata: 'SFO' },
+    { city: 'Denver',           iata: 'DEN' }, { city: 'Washington Dulles',iata: 'IAD' },
+    { city: 'Seattle',          iata: 'SEA' }, { city: 'Miami',            iata: 'MIA' },
+    { city: 'Boston',           iata: 'BOS' }, { city: 'Las Vegas',        iata: 'LAS' },
+    { city: 'Dallas/Fort Worth',iata: 'DFW' }, { city: 'Phoenix',          iata: 'PHX' },
+    { city: 'Atlanta',          iata: 'ATL' }, { city: 'Minneapolis',      iata: 'MSP' },
+    { city: 'London Heathrow',  iata: 'LHR' }, { city: 'Frankfurt',        iata: 'FRA' },
+    { city: 'Tokyo Narita',     iata: 'NRT' }, { city: 'Sydney',           iata: 'SYD' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Mexico City',      iata: 'MEX' },
+    { city: 'São Paulo GRU',    iata: 'GRU' }, { city: 'Bogota',           iata: 'BOG' },
   ],
-  ORD: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Los Angeles',     iata: 'LAX' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Miami',          iata: 'MIA' }, { city: 'Denver',          iata: 'DEN' },
-    { city: 'Seattle',        iata: 'SEA' }, { city: 'San Francisco',   iata: 'SFO' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Washington DC',   iata: 'DCA' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Frankfurt',       iata: 'FRA' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'Toronto',         iata: 'YYZ' },
-    { city: 'Phoenix',        iata: 'PHX' }, { city: 'Las Vegas',       iata: 'LAS' },
+
+  // Southwest Airlines — DOMESTIC US + select Caribbean/Mexico ONLY.
+  // Uses secondary/alternative airports:
+  //   DAL (Love Field) not DFW  |  MDW not ORD  |  HOU not IAH
+  //   BWI not DCA/IAD           |  FLL not MIA  |  LGA not JFK
+  //   OAK/SJC alongside SFO    |  HNL, OGG for Hawaii
+  WN: [
+    { city: 'Dallas Love Field',iata: 'DAL' }, { city: 'Chicago Midway',   iata: 'MDW' },
+    { city: 'Houston Hobby',    iata: 'HOU' }, { city: 'Baltimore/Wash.',  iata: 'BWI' },
+    { city: 'Fort Lauderdale',  iata: 'FLL' }, { city: 'New York LaGuardia',iata:'LGA' },
+    { city: 'Las Vegas',        iata: 'LAS' }, { city: 'Denver',           iata: 'DEN' },
+    { city: 'Phoenix',          iata: 'PHX' }, { city: 'Orlando',          iata: 'MCO' },
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'Nashville',        iata: 'BNA' },
+    { city: 'San Diego',        iata: 'SAN' }, { city: 'Oakland',          iata: 'OAK' },
+    { city: 'Seattle',          iata: 'SEA' }, { city: 'St. Louis',        iata: 'STL' },
+    { city: 'Kansas City',      iata: 'MCI' }, { city: 'Sacramento',       iata: 'SMF' },
+    { city: 'Raleigh/Durham',   iata: 'RDU' }, { city: 'Indianapolis',     iata: 'IND' },
+    { city: 'Columbus',         iata: 'CMH' }, { city: 'Austin',           iata: 'AUS' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Montego Bay',      iata: 'MBJ' },
+    { city: 'Cabo San Lucas',   iata: 'SJD' }, { city: 'Honolulu',         iata: 'HNL' },
   ],
-  JFK: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'Chicago',         iata: 'ORD' },
-    { city: 'Miami',          iata: 'MIA' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'San Francisco',   iata: 'SFO' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Paris CDG',       iata: 'CDG' },
-    { city: 'Frankfurt',      iata: 'FRA' }, { city: 'Amsterdam',       iata: 'AMS' },
-    { city: 'Dubai',          iata: 'DXB' }, { city: 'Doha',            iata: 'DOH' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'Boston',          iata: 'BOS' },
-    { city: 'Washington DC',  iata: 'DCA' }, { city: 'Seattle',         iata: 'SEA' },
+
+  // Alaska Airlines — West Coast + domestic + Mexico/Hawaii. Limited transatlantic.
+  AS: [
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'San Francisco',    iata: 'SFO' },
+    { city: 'Seattle',          iata: 'SEA' }, { city: 'Portland',         iata: 'PDX' },
+    { city: 'Anchorage',        iata: 'ANC' }, { city: 'Las Vegas',        iata: 'LAS' },
+    { city: 'Phoenix',          iata: 'PHX' }, { city: 'Denver',           iata: 'DEN' },
+    { city: 'Dallas/Fort Worth',iata: 'DFW' }, { city: 'Chicago O\'Hare',  iata: 'ORD' },
+    { city: 'New York JFK',     iata: 'JFK' }, { city: 'Boston',           iata: 'BOS' },
+    { city: 'Miami',            iata: 'MIA' }, { city: 'Washington DC',    iata: 'DCA' },
+    { city: 'Honolulu',         iata: 'HNL' }, { city: 'Maui',             iata: 'OGG' },
+    { city: 'San Diego',        iata: 'SAN' }, { city: 'Salt Lake City',   iata: 'SLC' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Mexico City',      iata: 'MEX' },
+    { city: 'Cabo San Lucas',   iata: 'SJD' }, { city: 'Vancouver',        iata: 'YVR' },
   ],
-  MIA: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Los Angeles',     iata: 'LAX' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'Bogota',          iata: 'BOG' },
-    { city: 'Lima',           iata: 'LIM' }, { city: 'São Paulo GRU',   iata: 'GRU' },
-    { city: 'Mexico City',    iata: 'MEX' }, { city: 'Cancun',          iata: 'CUN' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Madrid',          iata: 'MAD' },
-    { city: 'San Juan',       iata: 'SJU' }, { city: 'Nassau',          iata: 'NAS' },
-    { city: 'Montego Bay',    iata: 'MBJ' }, { city: 'Punta Cana',      iata: 'PUJ' },
+
+  // JetBlue — domestic US + Caribbean + transatlantic (LHR/CDG/AMS from JFK/BOS only).
+  // Does NOT serve DFW, MEM, IND, or many secondary markets.
+  B6: [
+    { city: 'New York JFK',     iata: 'JFK' }, { city: 'Boston',           iata: 'BOS' },
+    { city: 'Fort Lauderdale',  iata: 'FLL' }, { city: 'Orlando',          iata: 'MCO' },
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'Long Beach',       iata: 'LGB' },
+    { city: 'Washington DC',    iata: 'DCA' }, { city: 'San Juan',         iata: 'SJU' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Nassau',           iata: 'NAS' },
+    { city: 'Punta Cana',       iata: 'PUJ' }, { city: 'Montego Bay',      iata: 'MBJ' },
+    { city: 'Barbados',         iata: 'BGI' }, { city: 'Aruba',            iata: 'AUA' },
+    { city: 'Santo Domingo',    iata: 'SDQ' }, { city: 'Portland',         iata: 'PDX' },
+    { city: 'Seattle',          iata: 'SEA' }, { city: 'Denver',           iata: 'DEN' },
+    { city: 'Las Vegas',        iata: 'LAS' }, { city: 'San Francisco',    iata: 'SFO' },
+    { city: 'London Heathrow',  iata: 'LHR' }, { city: 'Paris CDG',        iata: 'CDG' },
+    { city: 'Amsterdam',        iata: 'AMS' },
   ],
-  SEA: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'San Francisco',   iata: 'SFO' },
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Chicago',         iata: 'ORD' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Denver',         iata: 'DEN' }, { city: 'Phoenix',         iata: 'PHX' },
-    { city: 'Las Vegas',      iata: 'LAS' }, { city: 'Anchorage',       iata: 'ANC' },
-    { city: 'Honolulu',       iata: 'HNL' }, { city: 'Tokyo Narita',    iata: 'NRT' },
-    { city: 'Vancouver',      iata: 'YVR' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Portland',        iata: 'PDX' },
+
+  // Spirit Airlines — ULCC domestic US + Caribbean/Latin America ONLY.
+  // No transatlantic. No Europe. No Asia.
+  NK: [
+    { city: 'Fort Lauderdale',  iata: 'FLL' }, { city: 'Las Vegas',        iata: 'LAS' },
+    { city: 'Orlando',          iata: 'MCO' }, { city: 'Chicago O\'Hare',  iata: 'ORD' },
+    { city: 'Los Angeles',      iata: 'LAX' }, { city: 'Dallas/Fort Worth',iata: 'DFW' },
+    { city: 'Atlanta',          iata: 'ATL' }, { city: 'New York LaGuardia',iata:'LGA' },
+    { city: 'Houston',          iata: 'IAH' }, { city: 'Detroit',          iata: 'DTW' },
+    { city: 'Philadelphia',     iata: 'PHL' }, { city: 'Boston',           iata: 'BOS' },
+    { city: 'Denver',           iata: 'DEN' }, { city: 'Baltimore',        iata: 'BWI' },
+    { city: 'Minneapolis',      iata: 'MSP' }, { city: 'Tampa',            iata: 'TPA' },
+    { city: 'Cancun',           iata: 'CUN' }, { city: 'Punta Cana',       iata: 'PUJ' },
+    { city: 'Montego Bay',      iata: 'MBJ' }, { city: 'San Juan',         iata: 'SJU' },
+    { city: 'Bogota',           iata: 'BOG' }, { city: 'Medellin',         iata: 'MDE' },
   ],
-  DEN: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'Chicago',         iata: 'ORD' },
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Atlanta',        iata: 'ATL' }, { city: 'Seattle',         iata: 'SEA' },
-    { city: 'San Francisco',  iata: 'SFO' }, { city: 'Phoenix',         iata: 'PHX' },
-    { city: 'Las Vegas',      iata: 'LAS' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Washington DC',   iata: 'DCA' },
-    { city: 'Salt Lake City', iata: 'SLC' }, { city: 'Minneapolis',     iata: 'MSP' },
-    { city: 'Houston',        iata: 'IAH' }, { city: 'Cancun',          iata: 'CUN' },
+
+  // British Airways — international, major US gateways only
+  BA: [
+    { city: 'London Heathrow',  iata: 'LHR' }, { city: 'London Gatwick',   iata: 'LGW' },
+    { city: 'Manchester',       iata: 'MAN' }, { city: 'Edinburgh',        iata: 'EDI' },
   ],
-  LAS: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'New York JFK',    iata: 'JFK' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Atlanta',        iata: 'ATL' }, { city: 'Seattle',         iata: 'SEA' },
-    { city: 'Denver',         iata: 'DEN' }, { city: 'Phoenix',         iata: 'PHX' },
-    { city: 'San Francisco',  iata: 'SFO' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Portland',        iata: 'PDX' },
-    { city: 'Salt Lake City', iata: 'SLC' }, { city: 'Minneapolis',     iata: 'MSP' },
-    { city: 'Washington DC',  iata: 'DCA' }, { city: 'Houston',         iata: 'IAH' },
+
+  // Lufthansa — international, major US gateways only
+  LH: [
+    { city: 'Frankfurt',        iata: 'FRA' }, { city: 'Munich',           iata: 'MUC' },
+    { city: 'Zurich',           iata: 'ZRH' }, { city: 'Vienna',           iata: 'VIE' },
   ],
-  SFO: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'New York JFK',    iata: 'JFK' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Seattle',         iata: 'SEA' },
-    { city: 'Dallas/Fort Worth',iata:'DFW' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Denver',         iata: 'DEN' }, { city: 'Las Vegas',       iata: 'LAS' },
-    { city: 'Tokyo Narita',   iata: 'NRT' }, { city: 'London Heathrow', iata: 'LHR' },
-    { city: 'Shanghai PVG',   iata: 'PVG' }, { city: 'Hong Kong',       iata: 'HKG' },
-    { city: 'Honolulu',       iata: 'HNL' }, { city: 'Mexico City',     iata: 'MEX' },
-    { city: 'Vancouver',      iata: 'YVR' }, { city: 'Paris CDG',       iata: 'CDG' },
+
+  // Air France — international, major US gateways only
+  AF: [
+    { city: 'Paris CDG',        iata: 'CDG' }, { city: 'Paris Orly',       iata: 'ORY' },
+    { city: 'Lyon',             iata: 'LYS' }, { city: 'Nice',             iata: 'NCE' },
   ],
-  BOS: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Los Angeles',     iata: 'LAX' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'Atlanta',        iata: 'ATL' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Washington DC',  iata: 'DCA' }, { city: 'Philadelphia',    iata: 'PHL' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Dublin',          iata: 'DUB' },
-    { city: 'Reykjavik',      iata: 'KEF' }, { city: 'Toronto',         iata: 'YYZ' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'San Juan',        iata: 'SJU' },
-    { city: 'Denver',         iata: 'DEN' }, { city: 'Seattle',         iata: 'SEA' },
+
+  // Qatar Airways — international, major US gateways only
+  QR: [
+    { city: 'Doha',             iata: 'DOH' },
   ],
-  IAH: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'New York JFK',    iata: 'JFK' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Atlanta',        iata: 'ATL' }, { city: 'Denver',          iata: 'DEN' },
-    { city: 'Miami',          iata: 'MIA' }, { city: 'Mexico City',     iata: 'MEX' },
-    { city: 'Bogota',         iata: 'BOG' }, { city: 'Cancun',          iata: 'CUN' },
-    { city: 'London Heathrow',iata: 'LHR' }, { city: 'Frankfurt',       iata: 'FRA' },
-    { city: 'Panama City',    iata: 'PTY' }, { city: 'Lima',            iata: 'LIM' },
-    { city: 'São Paulo GRU',  iata: 'GRU' }, { city: 'Monterrey',       iata: 'MTY' },
-  ],
-  MCO: [
-    { city: 'New York JFK',   iata: 'JFK' }, { city: 'Atlanta',         iata: 'ATL' },
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Boston',          iata: 'BOS' },
-    { city: 'Philadelphia',   iata: 'PHL' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Washington DC',  iata: 'DCA' }, { city: 'Los Angeles',     iata: 'LAX' },
-    { city: 'Minneapolis',    iata: 'MSP' }, { city: 'Detroit',         iata: 'DTW' },
-    { city: 'Baltimore',      iata: 'BWI' }, { city: 'Newark',          iata: 'EWR' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'Nassau',          iata: 'NAS' },
-    { city: 'San Juan',       iata: 'SJU' }, { city: 'London Heathrow', iata: 'LHR' },
-  ],
-  PHX: [
-    { city: 'Los Angeles',    iata: 'LAX' }, { city: 'Dallas/Fort Worth',iata:'DFW'},
-    { city: 'Chicago',        iata: 'ORD' }, { city: 'Denver',          iata: 'DEN' },
-    { city: 'Las Vegas',      iata: 'LAS' }, { city: 'Seattle',         iata: 'SEA' },
-    { city: 'Atlanta',        iata: 'ATL' }, { city: 'New York JFK',    iata: 'JFK' },
-    { city: 'San Francisco',  iata: 'SFO' }, { city: 'Salt Lake City',  iata: 'SLC' },
-    { city: 'Minneapolis',    iata: 'MSP' }, { city: 'Miami',           iata: 'MIA' },
-    { city: 'Boston',         iata: 'BOS' }, { city: 'Portland',        iata: 'PDX' },
-    { city: 'Cancun',         iata: 'CUN' }, { city: 'Cabo San Lucas',  iata: 'SJD' },
+
+  // Emirates — international, major US gateways only
+  EK: [
+    { city: 'Dubai',            iata: 'DXB' },
   ],
 };
 
-// Default routes for airports not in the map
-const DEFAULT_ROUTES: Route[] = [
-  { city: 'New York JFK',    iata: 'JFK' }, { city: 'Los Angeles',    iata: 'LAX' },
-  { city: 'Chicago',         iata: 'ORD' }, { city: 'Dallas/Fort Worth', iata: 'DFW' },
-  { city: 'Atlanta',         iata: 'ATL' }, { city: 'Miami',          iata: 'MIA' },
-  { city: 'Denver',          iata: 'DEN' }, { city: 'Seattle',        iata: 'SEA' },
-  { city: 'San Francisco',   iata: 'SFO' }, { city: 'Las Vegas',      iata: 'LAS' },
-  { city: 'Phoenix',         iata: 'PHX' }, { city: 'Boston',         iata: 'BOS' },
-  { city: 'Cancun',          iata: 'CUN' }, { city: 'London Heathrow',iata: 'LHR' },
-  { city: 'Houston',         iata: 'IAH' }, { city: 'Washington DC',  iata: 'DCA' },
-];
-
-// ── Hub-preferred airlines ───────────────────────────────────
-// Each hub is dominated by 1-2 carriers; weight the simulation accordingly
-const HUB_AIRLINES: Record<string, string[]> = {
-  DFW: ['AA','AA','AA','DL','UA','WN','B6','NK'],
-  ATL: ['DL','DL','DL','UA','AA','WN','B6','NK'],
-  LAX: ['AA','DL','UA','AS','B6','WN','NK','BA','QR','EK'],
-  ORD: ['UA','UA','AA','AA','DL','WN','B6','LH'],
-  JFK: ['AA','DL','B6','B6','UA','BA','AF','QR','EK','LH'],
-  MIA: ['AA','AA','AA','DL','UA','B6','BA','AF'],
-  SEA: ['AS','AS','AS','DL','UA','AA','WN','B6'],
-  DEN: ['UA','UA','DL','AA','WN','F9','B6','AS'],
-  LAS: ['SW','WN','WN','AA','DL','UA','NK','F9','B6'],
-  SFO: ['UA','UA','AS','DL','AA','B6','BA','LH','QR'],
-  BOS: ['AA','JB','B6','B6','DL','UA','AS','BA'],
-  IAH: ['UA','UA','UA','AA','DL','WN','B6','LH'],
-  MCO: ['AA','DL','UA','WN','B6','NK','AS','SW'],
-  PHX: ['AA','AA','AA','WN','WN','DL','UA','AS'],
+// ── Airline flight number ranges ─────────────────────────────
+const FLIGHT_NUM_RANGE: Record<string, [number, number]> = {
+  AA: [1,    3999], DL: [1,    4999], UA: [1,    4999],
+  WN: [1,    9999], AS: [1,    999],  B6: [1,    2999],
+  NK: [300,  1999], BA: [1,    499],  LH: [400,  8999],
+  AF: [1,    9099], QR: [1,    1499], EK: [1,    999],
 };
 
-// ── Stable pseudo-random (seeded) ───────────────────────────
-// Deterministic so the same airport+time always gives the same board
+// ── Per-airport airline presence ─────────────────────────────
+//
+// Only airlines that actually serve each airport are listed.
+// Weights reflect dominant carriers (more entries = more flights shown).
+//
+// Key constraints:
+//  • WN not at DFW (Love Field DAL), ORD (MDW), IAH (HOU), MIA (FLL), JFK (LGA)
+//  • International carriers (BA/LH/AF/QR/EK) only at major int'l gateways
+//  • B6 not at DFW (JetBlue has no DFW service)
+//
+const AIRPORT_AIRLINES: Record<string, string[]> = {
+  DFW: ['AA','AA','AA','AA','DL','UA','AS','NK','QR','BA'],
+  ATL: ['DL','DL','DL','DL','UA','AA','WN','NK','B6','BA','AF','LH'],
+  LAX: ['AA','DL','UA','AS','B6','WN','NK','BA','QR','EK','AF','LH'],
+  ORD: ['UA','UA','UA','AA','AA','DL','AS','NK','B6','BA','LH'],
+  JFK: ['AA','DL','B6','B6','B6','UA','NK','AS','BA','AF','QR','EK','LH'],
+  MIA: ['AA','AA','AA','DL','UA','B6','NK','AS','BA','AF','LH'],
+  SEA: ['AS','AS','AS','DL','UA','AA','WN','B6','BA'],
+  DEN: ['UA','UA','DL','AA','WN','WN','B6','AS','NK'],
+  LAS: ['WN','WN','WN','AA','DL','UA','NK','B6','AS'],
+  SFO: ['UA','UA','UA','AS','DL','AA','WN','B6','BA','LH','QR'],
+  BOS: ['AA','DL','B6','B6','B6','UA','AS','NK','BA'],
+  IAH: ['UA','UA','UA','UA','AA','DL','NK','BA','LH'],
+  MCO: ['AA','DL','UA','WN','WN','B6','B6','NK','AS'],
+  PHX: ['AA','AA','AA','AA','WN','WN','DL','UA','AS'],
+  CLT: ['AA','AA','AA','AA','DL','UA','WN','NK','B6'],
+  EWR: ['UA','UA','UA','AA','DL','B6','NK','LH','BA'],
+  MSP: ['DL','DL','DL','UA','AA','WN','AS','NK','B6'],
+  DTW: ['DL','DL','DL','UA','AA','WN','NK','B6'],
+  SLC: ['DL','DL','DL','UA','AA','WN','AS','B6'],
+  BNA: ['WN','WN','WN','AA','DL','UA','NK','B6'],
+};
+
+const DEFAULT_AIRPORT_AIRLINES = ['AA','DL','UA','WN','B6','AS','NK'];
+
+const GATE_LETTERS = ['A','B','C','D','E'];
+
+// ── Stable seeded pseudo-random ──────────────────────────────
 function seededRng(seed: number): () => number {
   let s = seed >>> 0;
-  return function () {
-    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
+  return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 0x100000000; };
 }
-
 function pick<T>(arr: T[], rng: () => number): T {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-// ── Gate/terminal helpers ────────────────────────────────────
-const GATE_LETTERS = ['A', 'B', 'C', 'D', 'E'];
-
-function fakeGate(rng: () => number): { terminal: string; gate: string } {
-  const letter = pick(GATE_LETTERS, rng);
-  const num    = Math.floor(rng() * 30) + 1;
-  return { terminal: letter, gate: `${letter}${num}` };
-}
-
-// ── Simulated board ──────────────────────────────────────────
+// ── Simulated board (airline-accurate) ──────────────────────
 function makeSimulatedRows(direction: 'dep' | 'arr', iata: string, count = 14): FlightRow[] {
   const now      = Date.now();
-  // Seed on airport + direction + current hour-slot so board refreshes hourly
   const hourSlot = Math.floor(now / (60 * 60_000));
-  const seed     = iata.split('').reduce((h, c) => h * 31 + c.charCodeAt(0), 0) ^
-                   (direction === 'dep' ? 0x1234 : 0x5678) ^
-                   hourSlot;
+  const seedBase = iata.split('').reduce((h, c) => h * 31 + c.charCodeAt(0), 0);
+  const seed     = seedBase ^ (direction === 'dep' ? 0x1234 : 0x5678) ^ hourSlot;
   const rng      = seededRng(seed);
 
-  const routes    = (HUB_ROUTES[iata] ?? DEFAULT_ROUTES).filter(r => r.iata !== iata);
-  const hubAirls  = HUB_AIRLINES[iata] ?? ['AA','DL','UA','WN','AS','B6'];
+  const airlineCodes = AIRPORT_AIRLINES[iata] ?? DEFAULT_AIRPORT_AIRLINES;
 
   return Array.from({ length: count }, (_, i): FlightRow => {
-    // Departures: 0–240 min from now; Arrivals: -30 to +120 min from now
+    // Spread flights across a 4-hour window from now
     const minOffset = direction === 'dep'
-      ? 8 + i * 15 + Math.floor(rng() * 10)    // every ~15 min, up to 4 h out
-      : -30 + i * 10 + Math.floor(rng() * 8);   // mix of past + upcoming
+      ? 5 + i * 17 + Math.floor(rng() * 8)
+      : -40 + i * 11 + Math.floor(rng() * 6);
 
-    const scheduledMs = now + minOffset * 60_000;
+    const scheduledMs  = now + minOffset * 60_000;
     const scheduledISO = new Date(scheduledMs).toISOString();
 
-    // 12% chance of delay (realistic)
-    const isDelayed  = rng() < 0.12;
-    const delayMins  = isDelayed ? (Math.floor(rng() * 8) + 1) * 10 : 0; // 10, 20, ... 80 min
+    const isDelayed    = rng() < 0.12;
+    const delayMins    = isDelayed ? (Math.floor(rng() * 6) + 1) * 10 : 0;
+    const estimatedISO = new Date(scheduledMs + delayMins * 60_000).toISOString();
 
-    // Status based on time offset
     let status: string;
     if (direction === 'dep') {
-      if (minOffset < -5)  status = 'landed';
-      else if (minOffset < 20) status = isDelayed ? 'delayed' : 'active';
-      else status = isDelayed ? 'delayed' : 'scheduled';
+      status = minOffset < -5 ? 'landed' : minOffset < 20 ? (isDelayed ? 'delayed' : 'active') : (isDelayed ? 'delayed' : 'scheduled');
     } else {
-      if (minOffset < -10) status = 'landed';
-      else if (minOffset < 15) status = isDelayed ? 'delayed' : 'active';
-      else status = 'scheduled';
+      status = minOffset < -10 ? 'landed' : minOffset < 15 ? (isDelayed ? 'delayed' : 'active') : 'scheduled';
     }
-
-    const estimatedMs  = scheduledMs + delayMins * 60_000;
-    const estimatedISO = new Date(estimatedMs).toISOString();
-    const actualISO    = (status === 'landed' || status === 'active')
-      ? new Date(estimatedMs + (Math.floor(rng() * 5) - 2) * 60_000).toISOString()
+    const actualISO = (status === 'landed' || status === 'active')
+      ? new Date(scheduledMs + delayMins * 60_000 + (Math.floor(rng() * 5) - 2) * 60_000).toISOString()
       : null;
 
-    const airlineIata = pick(hubAirls, rng);
-    const airline     = AIRLINES.find(a => a.iata === airlineIata) ?? AIRLINES[0];
-    const flightNum   = airline.flightBase + Math.floor(rng() * 899) + 1;
+    // Pick airline for this airport, then pick a route from that airline's
+    // actual network (excluding the current airport itself)
+    let airlineIata: string;
+    let routes: Route[];
+    let attempts = 0;
+    do {
+      airlineIata = pick(airlineCodes, rng);
+      routes = (AIRLINE_ROUTES[airlineIata] ?? []).filter(r => r.iata !== iata);
+      attempts++;
+    } while (routes.length === 0 && attempts < 10);
 
-    const route = pick(routes, rng);
-    const { terminal, gate } = fakeGate(rng);
+    if (routes.length === 0) {
+      // Absolute fallback — use AA domestic
+      airlineIata = 'AA';
+      routes = AIRLINE_ROUTES['AA'].filter(r => r.iata !== iata);
+    }
+
+    const airlineName  = AIRLINE_NAMES[airlineIata] ?? airlineIata;
+    const [minFn, maxFn] = FLIGHT_NUM_RANGE[airlineIata] ?? [100, 9999];
+    const flightNum    = minFn + Math.floor(rng() * (maxFn - minFn + 1));
+    const route        = pick(routes, rng);
+    const gateL        = pick(GATE_LETTERS, rng);
+    const gateN        = Math.floor(rng() * 35) + 1;
 
     return {
-      flightIata:  `${airline.iata}${flightNum}`,
-      airline:     airline.name,
-      airlineIata: airline.iata,
+      flightIata:  `${airlineIata}${flightNum}`,
+      airline:     airlineName,
+      airlineIata,
       city:        route.city,
       cityIata:    route.iata,
       scheduled:   scheduledISO,
@@ -348,30 +343,28 @@ function makeSimulatedRows(direction: 'dep' | 'arr', iata: string, count = 14): 
       actual:      actualISO,
       status,
       delay:       isDelayed ? delayMins : null,
-      terminal,
-      gate,
+      terminal:    gateL,
+      gate:        `${gateL}${gateN}`,
     };
   });
 }
 
-// ── Fetch one direction from AviationStack ──────────────────
-async function fetchFlights(
-  direction: 'dep' | 'arr',
-  iata: string,
-  apiKey: string,
-): Promise<FlightRow[]> {
-  const paramKey = direction === 'dep' ? 'dep_iata' : 'arr_iata';
-  const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}`
-    + `&${paramKey}=${iata}&limit=20`;
+const AIRLINE_NAMES: Record<string, string> = {
+  AA: 'American Airlines', DL: 'Delta Air Lines',  UA: 'United Airlines',
+  WN: 'Southwest Airlines',AS: 'Alaska Airlines',  B6: 'JetBlue Airways',
+  NK: 'Spirit Airlines',   BA: 'British Airways',  LH: 'Lufthansa',
+  AF: 'Air France',        QR: 'Qatar Airways',    EK: 'Emirates',
+};
 
+// ── Fetch one direction from AviationStack ──────────────────
+async function fetchFlights(direction: 'dep' | 'arr', iata: string, apiKey: string): Promise<FlightRow[]> {
+  const paramKey = direction === 'dep' ? 'dep_iata' : 'arr_iata';
+  const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&${paramKey}=${iata}&limit=20`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(6_000) });
   if (!resp.ok) throw new Error(`AviationStack ${resp.status}`);
-
-  const json    = (await resp.json()) as { data?: AsFlight[]; error?: { message: string } };
-  if (json.error) throw new Error(`AviationStack API error: ${json.error.message}`);
-  const flights = json.data ?? [];
-
-  return flights.map((f): FlightRow => {
+  const json = (await resp.json()) as { data?: AsFlight[]; error?: { message: string } };
+  if (json.error) throw new Error(`AviationStack: ${json.error.message}`);
+  return (json.data ?? []).map((f): FlightRow => {
     const other = direction === 'dep' ? f.arrival : f.departure;
     return {
       flightIata:  f.flight.iata ?? `${f.airline.iata}${f.flight.number}`,
@@ -399,58 +392,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET')    return res.status(405).json({ error: 'Method not allowed' });
 
   const iata = (req.query['airportIata'] as string | undefined)?.toUpperCase().trim();
-  if (!iata || iata.length !== 3) {
-    return res.status(400).json({ error: 'airportIata required (e.g. ATL)' });
-  }
+  if (!iata || iata.length !== 3) return res.status(400).json({ error: 'airportIata required (e.g. ATL)' });
 
-  // ── Cache check ───────────────────────────────────────────
-  const cacheKey = `board:v2:${iata}`;
+  const cacheKey = `board:v3:${iata}`;
   const cached   = await redis.get<BoardData>(cacheKey);
-  if (cached) {
-    res.setHeader('X-Cache', 'HIT');
-    return res.status(200).json(cached);
-  }
+  if (cached) { res.setHeader('X-Cache', 'HIT'); return res.status(200).json(cached); }
 
-  const asKey = process.env['AVIATIONSTACK_API_KEY'];
-
+  const asKey    = process.env['AVIATIONSTACK_API_KEY'];
   let departures: FlightRow[] = [];
   let arrivals:   FlightRow[] = [];
   let usedLive = false;
 
-  // ── 1. Try live AviationStack ─────────────────────────────
   if (asKey) {
     try {
-      const [depResult, arrResult] = await Promise.allSettled([
+      const [dep, arr] = await Promise.allSettled([
         fetchFlights('dep', iata, asKey),
         fetchFlights('arr', iata, asKey),
       ]);
-      departures = depResult.status === 'fulfilled' ? depResult.value : [];
-      arrivals   = arrResult.status === 'fulfilled' ? arrResult.value : [];
-
-      // If both returned data, use live
-      if (departures.length > 0 || arrivals.length > 0) {
-        usedLive = true;
-      }
-    } catch {
-      // fall through to simulated
-    }
+      departures = dep.status === 'fulfilled' ? dep.value : [];
+      arrivals   = arr.status === 'fulfilled' ? arr.value : [];
+      if (departures.length > 0 || arrivals.length > 0) usedLive = true;
+    } catch { /* fall through */ }
   }
 
-  // ── 2. Simulated board (API absent, quota exhausted, or 0 results) ──
   if (!usedLive) {
     departures = makeSimulatedRows('dep', iata);
     arrivals   = makeSimulatedRows('arr', iata);
   }
 
-  const result: BoardData = {
-    iata,
-    departures,
-    arrivals,
-    cachedAt: new Date().toISOString(),
-    mock: !usedLive,
-  };
-
-  // Live: 5-min cache. Simulated: 15-min cache (seeded by hour-slot anyway)
+  const result: BoardData = { iata, departures, arrivals, cachedAt: new Date().toISOString(), mock: !usedLive };
   await redis.setex(cacheKey, usedLive ? 300 : 900, result);
   res.setHeader('X-Cache', 'MISS');
   return res.status(200).json(result);
