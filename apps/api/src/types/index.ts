@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear API — Shared Types
+// APTSA API -- Shared Types
 // ============================================================
 
 export interface Airport {

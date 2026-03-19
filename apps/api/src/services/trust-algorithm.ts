@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — Weighted Trust Algorithm
+// APTSA -- Weighted Trust Algorithm
 //
 // Conflict Resolution Strategy:
 //   1. Remove statistical outliers (Z-score filter)

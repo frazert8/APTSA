@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — Airport Departures & Delay Intelligence
+// APTSA -- Airport Departures & Delay Intelligence
 //
 // Combines two data sources:
 //   • AviationStack  — remaining scheduled departure count

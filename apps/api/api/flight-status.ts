@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — AI Flight Status & Delay Detection
+// APTSA -- AI Flight Status & Delay Detection
 //
 // Priority chain (first success wins):
 //   1. FlightAware AeroAPI  — best coverage for US flights,

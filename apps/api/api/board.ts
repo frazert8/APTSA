@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — Live Flight Board (Departures + Arrivals)
+// APTSA -- Live Flight Board (Departures + Arrivals)
 //
 // GET /api/board?airportIata=ATL
 //

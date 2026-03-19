@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — TSA Wait Times Adapter
+// APTSA -- TSA Wait Times Adapter
 //
 // Priority chain (first non-zero result wins):
 //   1. TSAWaitTimes.com — rightnow field from the paid API key
@@ -91,7 +91,7 @@ async function fetchTsaWaitTimesApi(airportCode: string, apiKey: string): Promis
   try {
     const url  = `https://www.tsawaittimes.com/api/airport/${apiKey}/${airportCode}/json`;
     const resp = await fetch(url, {
-      headers: { 'User-Agent': 'SwiftClear/1.0 (+https://swiftclear.app)' },
+      headers: { 'User-Agent': 'APTSA/1.0 (+https://aptsa.vercel.app)' },
       signal:  AbortSignal.timeout(4_000),
     });
     if (!resp.ok) return null;
@@ -119,7 +119,7 @@ async function fetchMyTsaCheckpoints(airportCode: string): Promise<number[] | nu
   try {
     const url  = `https://apps.tsa.dhs.gov/MyTSAWebService/GetTSOWaitTimes.ashx?ap=${airportCode}&output=json`;
     const resp = await fetch(url, {
-      headers: { 'User-Agent': 'SwiftClear/1.0' },
+      headers: { 'User-Agent': 'APTSA/1.0' },
       signal:  AbortSignal.timeout(5_000),
     });
     if (!resp.ok) throw new Error(`MyTSA HTTP ${resp.status}`);

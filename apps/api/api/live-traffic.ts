@@ -1,5 +1,5 @@
 // ============================================================
-// SwiftClear — Live Aircraft Traffic (OpenSky Network)
+// APTSA -- Live Aircraft Traffic (OpenSky Network)
 //
 // GET /api/live-traffic?airportIata=ATL
 //
@@ -309,7 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const osUser = process.env['OPENSKY_USER'];
     const osPass = process.env['OPENSKY_PASS'];
     const headers: Record<string, string> = {
-      'User-Agent': 'SwiftClear/1.0 (+https://aptsa.vercel.app)',
+      'User-Agent': 'APTSA/1.0 (+https://aptsa.vercel.app)',
     };
     if (osUser && osPass) {
       headers['Authorization'] = 'Basic ' + Buffer.from(`${osUser}:${osPass}`).toString('base64');
