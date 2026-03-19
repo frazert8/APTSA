@@ -129,9 +129,20 @@ const CALLSIGN_PREFIX_MAP: Record<string, string> = {
   THA: 'THA',  // Thai Airways
   // ── Latin America ────────────────────────────────────────
   AMX: 'AMX',  // Aeromexico
-  TAM: 'TAM',  // LATAM Airlines
+  TAM: 'TAM',  // LATAM Airlines (Brazil)
+  LAN: 'LAN',  // LATAM Airlines (Chile/Peru)
   GLO: 'GLO',  // Gol Airlines
   VOI: 'VOI',  // Volaris
+  VIV: 'VIV',  // VivaAerobus
+  CMP: 'CMP',  // Copa Airlines
+  CM:  'CMP',  // Copa IATA alias
+  AVA: 'AVA',  // Avianca
+  AV:  'AVA',  // Avianca IATA alias
+  CBV: 'CBV',  // Cubana de Aviacion
+  // ── Caribbean ─────────────────────────────────────────────
+  BHS: 'BHS',  // Bahamas Air
+  CAY: 'CAY',  // Cayman Airways
+  BWA: 'BWA',  // Caribbean Airlines
 };
 
 export interface Aircraft {

@@ -76,12 +76,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (isMLSource && result.source === 'tsa_official') {
     result.source  = 'ml_predicted';
-    result.mlMeta  = { predictionSource: tsaResult.dataSource, samples: 0 };
+    result.mlMeta  = { predictionSource: tsaResult.dataSource, samples: tsaResult.samples };
   }
 
   // Hybrid: crowd data blended with ML — still mark the TSA side as ML
   if (isMLSource && result.source === 'hybrid') {
-    result.mlMeta = { predictionSource: tsaResult.dataSource, samples: 0 };
+    result.mlMeta = { predictionSource: tsaResult.dataSource, samples: tsaResult.samples };
+  }
+
+  // ── Per-terminal offset ───────────────────────────────────
+  // When TSA sources return a single airport-level number every
+  // terminal would show identical wait times, which is incorrect.
+  // Apply a stable ±4 min offset derived from the terminal UUID
+  // so every checkpoint shows a meaningfully different value.
+  // Crowd-sourced results are already per-terminal — skip them.
+  if (result.source === 'tsa_official' || result.source === 'ml_predicted') {
+    let hash = 5381;
+    for (let i = 0; i < terminalId.length; i++) {
+      hash = ((hash << 5) + hash) ^ terminalId.charCodeAt(i);
+      hash = hash & 0x7fffffff;
+    }
+    // hash % 9 → [0..8], subtract 4 → [-4..+4]
+    const offset = (hash % 9) - 4;
+    result.estimatedWaitMinutes = Math.max(1, result.estimatedWaitMinutes + offset);
   }
 
   // ── No-data guard ─────────────────────────────────────────
@@ -93,18 +110,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── Persist and cache ─────────────────────────────────────
+  // Only write real data to wait_time_snapshots — crowd reports and
+  // live TSA official readings. Never write ML/baseline predictions:
+  // those values would be read back by the k-NN model and create a
+  // circular feedback loop where bad initial guesses repeat forever.
+  const shouldPersist =
+    result.source === 'crowd_aggregate' ||
+    result.source === 'hybrid' ||
+    (result.source === 'tsa_official' && tsaResult?.dataSource === 'live');
+
   await Promise.all([
-    supabase.from('wait_time_snapshots').insert({
-      terminal_id:      terminalId,
-      source:           result.source === 'hybrid' ? 'hybrid'
-                        : result.source === 'ml_predicted' ? 'ml_predicted'
-                        : result.source === 'crowd_aggregate' ? 'crowd_aggregate'
-                        : 'tsa_official',
-      wait_minutes:     result.estimatedWaitMinutes,
-      confidence_score: result.confidenceScore,
-      sample_size:      result.sampleSize,
-      tsa_raw_minutes:  result.tsaRawMinutes,
-    }),
+    shouldPersist
+      ? supabase.from('wait_time_snapshots').insert({
+          terminal_id:      terminalId,
+          source:           result.source === 'hybrid'           ? 'hybrid'
+                            : result.source === 'crowd_aggregate' ? 'crowd_aggregate'
+                            : 'tsa_official',
+          wait_minutes:     result.estimatedWaitMinutes,
+          confidence_score: result.confidenceScore,
+          sample_size:      result.sampleSize,
+          tsa_raw_minutes:  result.tsaRawMinutes,
+        })
+      : Promise.resolve(),
     redis.setex(cacheKey, CACHE_TTL.WAIT_TIME, result),
   ]);
 

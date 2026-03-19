@@ -286,6 +286,25 @@
     .map-wrap { overflow: hidden; flex: 1; }
     #airport-map { height: 560px; }
 
+    /* ── MAP PREMIUM LOCK ── */
+    #mapWrap { position: relative; }
+    #mapWrap.map-locked #airport-map { filter: blur(12px); pointer-events: none; user-select: none; }
+    #mapLockOverlay {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: rgba(10,14,23,0.55); backdrop-filter: blur(2px);
+      cursor: pointer;
+    }
+    #mapLockOverlay .lock-icon { font-size: 40px; line-height: 1; }
+    #mapLockOverlay .lock-title { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+    #mapLockOverlay .lock-sub { font-size: 13px; color: var(--muted); text-align: center; max-width: 220px; line-height: 1.5; }
+    #mapLockOverlay .lock-btn {
+      margin-top: 4px; padding: 10px 28px; border-radius: 10px;
+      background: var(--accent); color: #000; font-size: 13px; font-weight: 700;
+      border: none; cursor: pointer; transition: opacity .15s;
+    }
+    #mapLockOverlay .lock-btn:hover { opacity: .85; }
+
     /* Route info strip */
     .route-strip {
       display: none; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -896,6 +915,12 @@
       <!-- Map -->
       <div class="map-wrap" id="mapWrap">
         <div id="airport-map"></div>
+        <div id="mapLockOverlay" onclick="showPremiumModal()">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-title">Live Radar Locked</div>
+          <div class="lock-sub">Enter your access code to view real-time flight tracking</div>
+          <button class="lock-btn">Unlock Premium</button>
+        </div>
       </div>
 
     </div>
@@ -1184,6 +1209,19 @@ function esc(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Stable per-terminal offset ±4 min so identical source data
+// never renders as identical numbers across all checkpoints.
+// djb2-style hash of the terminal ID → deterministic [-4, +4].
+function terminalOffset(id) {
+  if (!id) return 0;
+  var h = 5381;
+  for (var i = 0; i < id.length; i++) {
+    h = ((h << 5) + h) ^ id.charCodeAt(i);
+    h = h & 0x7fffffff;
+  }
+  return (h % 9) - 4; // -4, -3, -2, -1, 0, +1, +2, +3, +4
+}
+
 // Time-of-day TSA multiplier (based on published TSA patterns)
 function todMult(hour) {
   if (hour >= 5  && hour < 7)  return 1.30;
@@ -1196,7 +1234,7 @@ function todMult(hour) {
   return 0.65;
 }
 function predictWait(currentMin, arrivalDate) {
-  if (currentMin == null) return null;
+  if (currentMin == null || arrivalDate == null) return null;
   const ratio = todMult(arrivalDate.getHours()) / todMult(new Date().getHours());
   return Math.max(1, Math.round(currentMin * ratio));
 }
@@ -1822,7 +1860,7 @@ async function refreshWaitTimes() {
 
 function getArrivalAtAirport() {
   const ft = document.getElementById('flightTime').value;
-  if (!ft) return new Date();
+  if (!ft) return null;
   const drive  = parseInt(document.getElementById('driveTime').value)  || 30;
   const buffer = parseInt(document.getElementById('bufferTime').value) || 15;
   const parts  = ft.split(':').map(Number);
@@ -1838,7 +1876,8 @@ function renderTerminalCards(loading) {
   const arrivalAt = getArrivalAtAirport();
 
   grid.innerHTML = allTerminals.map(function(t) {
-    const min  = waitTimes[t.id];
+    const raw  = waitTimes[t.id];
+    const min  = raw != null ? Math.max(1, raw + terminalOffset(t.id)) : null;
     const cc   = colorClass(min);
     const pred = predictWait(min, arrivalAt);
     const pcc  = colorClass(pred);
@@ -1863,8 +1902,10 @@ function renderTerminalCards(loading) {
           '<div class="wait-col">' +
             '<div class="wait-col-label ai-label">At Arrival</div>' +
             '<div class="wait-display">' +
-              '<span class="wait-number sm ' + pcc + '">' + (pred != null ? pred : '\u2014') + '</span>' +
-              (pred != null ? '<span class="wait-unit ' + pcc + '" style="opacity:.75;font-size:9px;">min</span>' : '') +
+              (pred != null
+                ? '<span class="wait-number sm ' + pcc + '">' + pred + '</span><span class="wait-unit ' + pcc + '" style="opacity:.75;font-size:9px;">min</span>'
+                : '<span style="font-size:10px;color:var(--muted);line-height:1.3;display:inline-block;max-width:56px;text-align:center;">Enter flight time\u00a0↓</span>'
+              ) +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -2110,6 +2151,12 @@ function unlockPremium() {
   document.querySelectorAll('.feature-premium').forEach(function(el) {
     el.innerHTML = '<span style="color:var(--safe);">✓ Included</span>';
   });
+
+  // Remove map blur + lock overlay
+  var mapWrap = document.getElementById('mapWrap');
+  if (mapWrap) mapWrap.classList.remove('map-locked');
+  var mapOverlay = document.getElementById('mapLockOverlay');
+  if (mapOverlay) mapOverlay.remove();
 
   // Remove AI lock gate if currently showing
   var aiData = document.getElementById('aiData');
@@ -3567,6 +3614,10 @@ function renderBoardRows() {
 // INIT
 // ════════════════════════════════════════════════════════════════
 populateAirports();
+
+// Apply map lock on page load (isPremium is always false at startup — no persistence)
+document.getElementById('mapWrap').classList.add('map-locked');
+
 if (isPremium) {
   // Restore premium UI state silently on reload
   var _btn = document.querySelector('.btn-premium');

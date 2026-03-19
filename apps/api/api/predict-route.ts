@@ -23,6 +23,7 @@ import { redis } from '../src/lib/redis.js';
 
 // ── Airport database (lat, lon, hub airlines) ─────────────────
 const AIRPORTS: Record<string, { lat: number; lon: number; hubs: string[] }> = {
+  // ── US Domestic ───────────────────────────────────────────────
   ATL: { lat: 33.6407,  lon: -84.4277,  hubs: ['DAL','EIN','SKW','ENY','RPA'] },
   BOS: { lat: 42.3656,  lon: -71.0096,  hubs: ['JBU','AAL','UAL'] },
   CLT: { lat: 35.2271,  lon: -80.9431,  hubs: ['AAL','ENY'] },
@@ -31,9 +32,9 @@ const AIRPORTS: Record<string, { lat: number; lon: number; hubs: string[] }> = {
   DEN: { lat: 39.8561,  lon: -104.6737, hubs: ['UAL','FFT','SWA'] },
   LAS: { lat: 36.0840,  lon: -115.1537, hubs: ['SWA','AAY'] },
   LAX: { lat: 33.9425,  lon: -118.4081, hubs: ['AAL','UAL','DAL','ASA','JBU'] },
-  MIA: { lat: 25.7959,  lon: -80.2870,  hubs: ['AAL','ENY'] },
+  MIA: { lat: 25.7959,  lon: -80.2870,  hubs: ['AAL','ENY','LAN','COA'] },
   MSP: { lat: 44.8848,  lon: -93.2223,  hubs: ['DAL','SKW','SCX'] },
-  JFK: { lat: 40.6413,  lon: -73.7781,  hubs: ['JBU','AAL','DAL','B6'] },
+  JFK: { lat: 40.6413,  lon: -73.7781,  hubs: ['JBU','AAL','DAL'] },
   MCO: { lat: 28.4312,  lon: -81.3081,  hubs: ['SWA','AAL','DAL'] },
   PHX: { lat: 33.4373,  lon: -112.0078, hubs: ['SWA','AAL'] },
   SFO: { lat: 37.6213,  lon: -122.3790, hubs: ['UAL','ASA'] },
@@ -47,7 +48,7 @@ const AIRPORTS: Record<string, { lat: number; lon: number; hubs: string[] }> = {
   FLL: { lat: 26.0726,  lon: -80.1527,  hubs: ['JBU','SWA','NKS','AAY'] },
   HOU: { lat: 29.6454,  lon: -95.2789,  hubs: ['SWA'] },
   IAD: { lat: 38.9531,  lon: -77.4565,  hubs: ['UAL'] },
-  IAH: { lat: 29.9902,  lon: -95.3368,  hubs: ['UAL'] },
+  IAH: { lat: 29.9902,  lon: -95.3368,  hubs: ['UAL','COA'] },
   LGA: { lat: 40.7769,  lon: -73.8740,  hubs: ['DAL','AAL'] },
   MCI: { lat: 39.2976,  lon: -94.7130,  hubs: ['SWA','AAL'] },
   MDW: { lat: 41.7868,  lon: -87.7522,  hubs: ['SWA'] },
@@ -58,6 +59,37 @@ const AIRPORTS: Record<string, { lat: number; lon: number; hubs: string[] }> = {
   SJC: { lat: 37.3626,  lon: -121.9290, hubs: ['SWA','AAL'] },
   SLC: { lat: 40.7899,  lon: -111.9791, hubs: ['DAL','SWA'] },
   TPA: { lat: 27.9755,  lon: -82.5332,  hubs: ['SWA','AAL'] },
+  // ── Mexico ────────────────────────────────────────────────────
+  CUN: { lat: 21.0365,  lon: -86.8771,  hubs: ['AMX','VOI','VIV'] },
+  MEX: { lat: 19.4363,  lon: -99.0721,  hubs: ['AMX','VOI','VIV'] },
+  GDL: { lat: 20.5218,  lon: -103.3107, hubs: ['VOI','VIV','AMX'] },
+  MTY: { lat: 25.7785,  lon: -100.1069, hubs: ['AMX','VIV'] },
+  SJD: { lat: 23.1518,  lon: -109.7211, hubs: ['AMX','VOI'] },
+  // ── Caribbean ─────────────────────────────────────────────────
+  SJU: { lat: 18.4394,  lon: -66.0018,  hubs: ['JBU','AAL','DAL'] },
+  NAS: { lat: 25.0390,  lon: -77.4661,  hubs: ['AAL','BHS'] },
+  MBJ: { lat: 18.5037,  lon: -77.9134,  hubs: ['AAL','JBU'] },
+  PUJ: { lat: 18.5674,  lon: -68.3635,  hubs: ['AAL','JBU'] },
+  HAV: { lat: 22.9892,  lon: -82.4091,  hubs: ['CBV'] },
+  // ── Central & South America ───────────────────────────────────
+  BOG: { lat:  4.7016,  lon: -74.1469,  hubs: ['AVA','LAN'] },
+  GUA: { lat: 14.5833,  lon: -90.5275,  hubs: ['CMP','AMX'] },
+  SAL: { lat: 13.4409,  lon: -89.0557,  hubs: ['CMP'] },
+  PTY: { lat:  9.0713,  lon: -79.3835,  hubs: ['CMP'] },
+  LIM: { lat: -12.0219, lon: -77.1143,  hubs: ['LAN','AVA'] },
+  GRU: { lat: -23.4356, lon: -46.4731,  hubs: ['TAM','GLO'] },
+  SCL: { lat: -33.3930, lon: -70.7858,  hubs: ['LAN'] },
+  // ── Canada ────────────────────────────────────────────────────
+  YYZ: { lat: 43.6777,  lon: -79.6248,  hubs: ['ACA','WJA'] },
+  YVR: { lat: 49.1967,  lon: -123.1815, hubs: ['ACA','WJA'] },
+  YUL: { lat: 45.4706,  lon: -73.7408,  hubs: ['ACA'] },
+  YYC: { lat: 51.1315,  lon: -114.0106, hubs: ['WJA','ACA'] },
+  // ── Europe (transatlantic corridors) ─────────────────────────
+  LHR: { lat: 51.4700,  lon:  -0.4543,  hubs: ['BAW','VIR'] },
+  CDG: { lat: 49.0097,  lon:   2.5479,  hubs: ['AFR'] },
+  FRA: { lat: 50.0379,  lon:   8.5622,  hubs: ['DLH'] },
+  AMS: { lat: 52.3086,  lon:   4.7639,  hubs: ['KLM'] },
+  MAD: { lat: 40.4936,  lon:  -3.5668,  hubs: ['IBE'] },
 };
 
 const AP_CODES = Object.keys(AIRPORTS);
