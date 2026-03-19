@@ -225,6 +225,11 @@
     .field-group { display: flex; flex-direction: column; gap: 5px; }
     .field-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
     .field-group input, .field-group select { width: 100%; }
+    .drive-row { display: flex; gap: 6px; align-items: center; }
+    .drive-row input { flex: 1; min-width: 0; }
+    .btn-locate { flex-shrink: 0; height: 38px; padding: 0 10px; background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3); border-radius: 8px; color: var(--accent); font-size: 14px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+    .btn-locate:hover { background: rgba(34,211,238,0.2); }
+    .btn-locate:disabled { opacity: .5; cursor: default; }
 
     /* AI Panel */
     .ai-panel { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2); border-radius: 14px; padding: 15px 18px; margin-bottom: 16px; display: none; }
@@ -803,11 +808,16 @@
       <div class="gz-fields">
         <div class="field-group">
           <label class="field-label" for="flightTime">Flight Departure</label>
-          <input type="time" id="flightTime" oninput="calculate()" />
+          <select id="flightTime" onchange="calculate()">
+            <option value="">Select time…</option>
+          </select>
         </div>
         <div class="field-group">
-          <label class="field-label" for="driveTime">Drive Time (min)</label>
-          <input type="number" id="driveTime" value="30" min="0" max="300" oninput="calculate()" />
+          <label class="field-label">Drive Time (min)</label>
+          <div class="drive-row">
+            <input type="number" id="driveTime" value="30" min="0" max="300" oninput="calculate()" placeholder="min" />
+            <button class="btn-locate" id="driveLocateBtn" onclick="calcDriveTime()" title="Auto-calculate from my location">📍</button>
+          </div>
         </div>
         <div class="field-group">
           <label class="field-label" for="checkpointSelect">TSA Checkpoint</label>
@@ -817,7 +827,19 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="bufferTime">Safety Buffer (min)</label>
-          <input type="number" id="bufferTime" value="15" min="0" max="90" oninput="calculate()" />
+          <select id="bufferTime" onchange="calculate()">
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="15" selected>15 min</option>
+            <option value="20">20 min</option>
+            <option value="25">25 min</option>
+            <option value="30">30 min</option>
+            <option value="35">35 min</option>
+            <option value="40">40 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+            <option value="90">90 min</option>
+          </select>
         </div>
       </div>
 
@@ -860,11 +882,11 @@
         </div>
       </div>
 
-      <!-- Uber CTA -->
+      <!-- Uber CTA — shown immediately when a departure time is selected -->
       <div class="uber-cta" id="uberCta" onclick="openUber()">
         <span class="uber-logo">🚗</span>
         <div class="uber-text">
-          <div class="uber-hl">Schedule a ride at the perfect time</div>
+          <div class="uber-hl">Book a ride — leave at <span id="uberLeaveTime">the right time</span></div>
           <div class="uber-sub">Zero wasted time — arrive right when you need to, not an hour early.</div>
         </div>
         <span class="uber-code">SWIFTCLEAR</span>
@@ -1947,6 +1969,72 @@ function selectCheckpoint(id) {
 // ════════════════════════════════════════════════════════════════
 // GATE ZERO CALCULATOR
 // ════════════════════════════════════════════════════════════════
+
+// Populate flight departure dropdown with 15-min increments, 4 AM → midnight
+function populateFlightTimes() {
+  var sel = document.getElementById('flightTime');
+  var now = new Date();
+  var frag = ['<option value="">Select departure time…</option>'];
+  for (var h = 4; h < 24; h++) {
+    for (var m = 0; m < 60; m += 15) {
+      var val  = (h < 10 ? '0' : '') + h + ':' + (m === 0 ? '00' : m);
+      var ampm = h < 12 ? 'AM' : 'PM';
+      var disp = (h % 12 || 12) + ':' + (m === 0 ? '00' : m) + ' ' + ampm;
+      // Mark times within the next 12 hours as recommended
+      var t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+      if (t < now) t.setDate(t.getDate() + 1);
+      var soon = (t - now) < 12 * 3600 * 1000;
+      frag.push('<option value="' + val + '"' + (soon ? '' : '') + '>' + disp + '</option>');
+    }
+  }
+  // Also add 12:00 AM / 12:15 / 12:30 / 12:45 (red-eyes)
+  ['00:00','00:15','00:30','00:45','01:00','01:15','01:30','01:45',
+   '02:00','02:15','02:30','02:45','03:00','03:15','03:30','03:45'].forEach(function(val) {
+    var parts = val.split(':').map(Number);
+    var disp  = (parts[0] % 12 || 12) + ':' + (parts[1] === 0 ? '00' : parts[1]) + ' AM';
+    frag.push('<option value="' + val + '">' + disp + ' (red-eye)</option>');
+  });
+  sel.innerHTML = frag.join('');
+}
+
+// Auto-calculate drive time from user's current location to the airport
+function calcDriveTime() {
+  var btn = document.getElementById('driveLocateBtn');
+  if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    var origin  = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+    var airport = getAirport(document.getElementById('airportSelect').value);
+    var dest    = new google.maps.LatLng(airport.lat, airport.lon);
+
+    var svc = new google.maps.DistanceMatrixService();
+    svc.getDistanceMatrix({
+      origins:      [origin],
+      destinations: [dest],
+      travelMode:   google.maps.TravelMode.DRIVING,
+      drivingOptions: { departureTime: new Date(), trafficModel: google.maps.TrafficModel.BEST_GUESS },
+    }, function(resp, status) {
+      btn.disabled = false;
+      btn.textContent = '📍';
+      if (status !== 'OK') { alert('Could not calculate drive time. Check location permissions.'); return; }
+      var el = resp.rows[0].elements[0];
+      if (!el || el.status !== 'OK') { alert('No driving route found to this airport.'); return; }
+      // Prefer duration_in_traffic if available (live traffic), else duration
+      var secs = (el.duration_in_traffic || el.duration).value;
+      var mins = Math.ceil(secs / 60);
+      document.getElementById('driveTime').value = mins;
+      calculate();
+      showToast('🚗 Drive time updated: ' + mins + ' min with current traffic');
+    });
+  }, function(err) {
+    btn.disabled = false;
+    btn.textContent = '📍';
+    alert(err.code === 1 ? 'Location access denied. Allow location in your browser settings.' : 'Could not get your location.');
+  }, { timeout: 8000, maximumAge: 0 });
+}
+
 function calculate() {
   const ft        = document.getElementById('flightTime').value;
   const driveMin  = parseInt(document.getElementById('driveTime').value)  || 30;
@@ -1963,6 +2051,8 @@ function calculate() {
     return;
   }
   noFlight.style.display = 'none';
+  // Show Uber CTA immediately as soon as a time is selected
+  uberCta.classList.add('visible');
 
   const now   = new Date();
   const parts = ft.split(':').map(Number);
@@ -2018,7 +2108,9 @@ function calculate() {
 
   document.getElementById('resultNote').innerHTML = note;
   result.classList.add('visible');
-  uberCta.classList.add('visible');
+  // Update Uber CTA with the computed leave-by time
+  var uberLeaveEl = document.getElementById('uberLeaveTime');
+  if (uberLeaveEl) uberLeaveEl.textContent = fmt12(leaveBy);
 
   if (allTerminals.length) renderTerminalCards(false);
 }
@@ -2031,12 +2123,33 @@ function updateCalcResult() {
 // UBER
 // ════════════════════════════════════════════════════════════════
 function openUber() {
-  const airport = getAirport(document.getElementById('airportSelect').value);
-  const url = 'https://m.uber.com/ul/?action=setPickup&pickup=my_location'
+  var airport  = getAirport(document.getElementById('airportSelect').value);
+  var ft       = document.getElementById('flightTime').value;
+  var driveMin = parseInt(document.getElementById('driveTime').value)  || 30;
+  var bufMin   = parseInt(document.getElementById('bufferTime').value) || 15;
+  var url      = 'https://m.uber.com/ul/?action=setPickup&pickup=my_location'
     + '&dropoff[nickname]=' + encodeURIComponent(airport.name)
-    + '&dropoff[latitude]=' + airport.lat
+    + '&dropoff[latitude]='  + airport.lat
     + '&dropoff[longitude]=' + airport.lon
     + '&promotion_code=SWIFTCLEAR';
+
+  // If we have a departure time, deep-link with a scheduled pickup timestamp
+  if (ft) {
+    var parts  = ft.split(':').map(Number);
+    var dep    = new Date();
+    dep.setHours(parts[0], parts[1], 0, 0);
+    if (dep < new Date()) dep.setDate(dep.getDate() + 1);
+    // Fetch wait time to compute leaveBy; fall back to driveMin + bufMin
+    var secMin    = 20;
+    var tid       = document.getElementById('checkpointSelect').value;
+    var arrAt     = new Date(dep.getTime() - (driveMin + bufMin) * 60000);
+    if (tid && waitTimes[tid] != null) secMin = predictWait(waitTimes[tid], arrAt) || 20;
+    var terminal  = allTerminals.find(function(t){ return t.id === tid; });
+    var gateWalk  = (terminal && terminal.walk_to_gate_avg_minutes) || 10;
+    var leaveBy   = new Date(dep.getTime() - (driveMin + secMin + gateWalk + bufMin) * 60000);
+    url += '&pickup[scheduledAt]=' + Math.floor(leaveBy.getTime() / 1000);
+  }
+
   window.open(url, '_blank');
 }
 
@@ -3614,6 +3727,7 @@ function renderBoardRows() {
 // INIT
 // ════════════════════════════════════════════════════════════════
 populateAirports();
+populateFlightTimes();
 
 // Apply map lock on page load (isPremium is always false at startup — no persistence)
 document.getElementById('mapWrap').classList.add('map-locked');
