@@ -1997,41 +1997,57 @@ function populateFlightTimes() {
   sel.innerHTML = frag.join('');
 }
 
-// Auto-calculate drive time from user's current location to the airport
+// Straight-line distance between two lat/lon points (km)
+function haversineKm(lat1, lon1, lat2, lon2) {
+  var R = 6371, d2r = Math.PI / 180;
+  var dLat = (lat2 - lat1) * d2r, dLon = (lon2 - lon1) * d2r;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+          Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Auto-calculate drive time from user's current location to the airport.
+// Uses DirectionsService (Directions API — already enabled on this key).
+// Falls back to a straight-line haversine estimate if routing fails.
 function calcDriveTime() {
   var btn = document.getElementById('driveLocateBtn');
-  if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
+  if (!navigator.geolocation) { showToast('Geolocation not supported by your browser.'); return; }
   btn.disabled = true;
   btn.textContent = '⏳';
 
   navigator.geolocation.getCurrentPosition(function(pos) {
-    var origin  = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
     var airport = getAirport(document.getElementById('airportSelect').value);
-    var dest    = new google.maps.LatLng(airport.lat, airport.lon);
 
-    var svc = new google.maps.DistanceMatrixService();
-    svc.getDistanceMatrix({
-      origins:      [origin],
-      destinations: [dest],
-      travelMode:   google.maps.TravelMode.DRIVING,
-      drivingOptions: { departureTime: new Date(), trafficModel: google.maps.TrafficModel.BEST_GUESS },
-    }, function(resp, status) {
+    // DirectionsService is already used by the route map — no extra API to enable
+    var svc = new google.maps.DirectionsService();
+    svc.route({
+      origin:      new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude),
+      destination: new google.maps.LatLng(airport.lat, airport.lon),
+      travelMode:  google.maps.TravelMode.DRIVING,
+    }, function(result, status) {
       btn.disabled = false;
       btn.textContent = '📍';
-      if (status !== 'OK') { alert('Could not calculate drive time. Check location permissions.'); return; }
-      var el = resp.rows[0].elements[0];
-      if (!el || el.status !== 'OK') { alert('No driving route found to this airport.'); return; }
-      // Prefer duration_in_traffic if available (live traffic), else duration
-      var secs = (el.duration_in_traffic || el.duration).value;
-      var mins = Math.ceil(secs / 60);
-      document.getElementById('driveTime').value = mins;
-      calculate();
-      showToast('🚗 Drive time updated: ' + mins + ' min with current traffic');
+
+      if (status === 'OK' && result.routes[0]) {
+        var mins = Math.ceil(result.routes[0].legs[0].duration.value / 60);
+        document.getElementById('driveTime').value = mins;
+        calculate();
+        showToast('🚗 Drive time updated: ' + mins + ' min');
+      } else {
+        // Fallback: haversine straight-line ÷ avg 55 km/h, add 20% buffer
+        var km   = haversineKm(pos.coords.latitude, pos.coords.longitude, airport.lat, airport.lon);
+        var mins = Math.min(Math.ceil(km / 55 * 60 * 1.2), 180);
+        document.getElementById('driveTime').value = mins;
+        calculate();
+        showToast('🚗 Drive time estimated: ~' + mins + ' min (straight-line)');
+      }
     });
   }, function(err) {
     btn.disabled = false;
     btn.textContent = '📍';
-    alert(err.code === 1 ? 'Location access denied. Allow location in your browser settings.' : 'Could not get your location.');
+    showToast(err.code === 1
+      ? 'Location denied — allow location access in browser settings'
+      : 'Could not get your location. Try again.');
   }, { timeout: 8000, maximumAge: 0 });
 }
 
