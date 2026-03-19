@@ -1,56 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 415 76" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 76" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
   <defs>
 
     <!--
       CONTRAIL GRADIENT — horizontal, x=10 → x=326
-      ─────────────────────────────────────────────
-      The contrail IS the crossbar of both A's (100 % opaque at those
-      positions).  Through P, T, S it dips to ~25 % so it reads as a
-      subtle connecting thread rather than overpowering the letters.
-      Past the last A it fades over 48 px (≈ 0.5 in @ 96 dpi) before
-      the plane sits at x=326.
-
-      Stop positions (userSpaceOnUse, span = 326−10 = 316 px):
-        x=10  →  0.0 %   opacity 1.00  first A crossbar L
-        x=38  →  8.9 %   opacity 1.00  first A crossbar R
-        x=58  → 15.2 %   opacity 0.28  into P
-        x=114 → 32.9 %   opacity 0.20  into T
-        x=170 → 50.6 %   opacity 0.20  into S
-        x=218 → 65.8 %   opacity 0.25  leaving S
-        x=236 → 71.5 %   opacity 1.00  last A crossbar L
-        x=264 → 80.4 %   opacity 1.00  last A crossbar R
-        x=290 → 88.6 %   opacity 0.38  clearing the logo
-        x=326 →100.0 %   opacity 0.05  at plane tail
+      Solid at both A crossbars, recedes to ~22% through P/T/S,
+      then fades to near-zero over the 48 px (≈0.5 in) gap before the plane.
     -->
     <linearGradient id="contrail"
                     x1="10" y1="0" x2="326" y2="0"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0%"     stop-color="#22d3ee" stop-opacity="1"/>
-      <stop offset="8.9%"   stop-color="#22d3ee" stop-opacity="1"/>
-      <stop offset="15.2%"  stop-color="#22d3ee" stop-opacity="0.28"/>
-      <stop offset="32.9%"  stop-color="#22d3ee" stop-opacity="0.20"/>
-      <stop offset="50.6%"  stop-color="#22d3ee" stop-opacity="0.20"/>
-      <stop offset="65.8%"  stop-color="#22d3ee" stop-opacity="0.25"/>
-      <stop offset="71.5%"  stop-color="#22d3ee" stop-opacity="1"/>
-      <stop offset="80.4%"  stop-color="#22d3ee" stop-opacity="1"/>
-      <stop offset="88.6%"  stop-color="#22d3ee" stop-opacity="0.38"/>
-      <stop offset="100%"   stop-color="#22d3ee" stop-opacity="0.05"/>
+      <stop offset="0%"     stop-color="#22d3ee" stop-opacity="1.00"/>
+      <stop offset="8.9%"   stop-color="#22d3ee" stop-opacity="1.00"/>
+      <stop offset="15.2%"  stop-color="#22d3ee" stop-opacity="0.26"/>
+      <stop offset="32.9%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="50.6%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="65.8%"  stop-color="#22d3ee" stop-opacity="0.24"/>
+      <stop offset="71.5%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+      <stop offset="80.4%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+      <stop offset="90%"    stop-color="#22d3ee" stop-opacity="0.32"/>
+      <stop offset="100%"   stop-color="#22d3ee" stop-opacity="0.04"/>
     </linearGradient>
 
-    <!-- Softer secondary contrail (1 px lower, more diffuse) -->
     <linearGradient id="contrail2"
                     x1="10" y1="0" x2="326" y2="0"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0%"    stop-color="#22d3ee" stop-opacity="0.40"/>
-      <stop offset="8.9%"  stop-color="#22d3ee" stop-opacity="0.40"/>
-      <stop offset="50%"   stop-color="#22d3ee" stop-opacity="0.10"/>
-      <stop offset="80.4%" stop-color="#22d3ee" stop-opacity="0.40"/>
+      <stop offset="0%"    stop-color="#22d3ee" stop-opacity="0.36"/>
+      <stop offset="8.9%"  stop-color="#22d3ee" stop-opacity="0.36"/>
+      <stop offset="50%"   stop-color="#22d3ee" stop-opacity="0.08"/>
+      <stop offset="80.4%" stop-color="#22d3ee" stop-opacity="0.36"/>
       <stop offset="100%"  stop-color="#22d3ee" stop-opacity="0"/>
     </linearGradient>
 
-    <!-- Glow: composites blurred copy beneath the crisp layer -->
-    <filter id="glow" x="-8%" y="-50%" width="116%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
+    <!-- Glow: blurred copy composited behind crisp shapes -->
+    <filter id="glow" x="-12%" y="-40%" width="124%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.0" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -61,34 +44,31 @@
 
 
   <!-- ═══════════════════════════════════════════════════════════
-       LETTERFORMS  —  geometric stroke, 5.5 px round cap / join
-       Cap y=8  ·  Baseline y=68  ·  Letter width 48 px  ·  Kern 10 px
-       A₁ crossbar intersection (t=0.6):  x_L=10  x_R=38  y=44
-       A₂ crossbar intersection (t=0.6):  x_L=236  x_R=264  y=44
+       LETTERFORMS  —  5.5 px round stroke  ·  cap y=8  ·  base y=68
+       A₁ crossbar (t=0.6): x=10–38 y=44  ·  A₂: x=236–264 y=44
        ═══════════════════════════════════════════════════════════ -->
 
-  <g stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"
+  <g stroke="#fff" stroke-width="5.5" stroke-linecap="round"
      stroke-linejoin="round" fill="none">
 
-    <!-- A₁  (x 0–48)  — NO crossbar; contrail serves as crossbar -->
+    <!-- A₁  no crossbar — contrail is the crossbar -->
     <line x1="24"  y1="8"  x2="0"   y2="68"/>
     <line x1="24"  y1="8"  x2="48"  y2="68"/>
 
-    <!-- P  (x 58–106) -->
+    <!-- P -->
     <line x1="58"  y1="8"  x2="58"  y2="68"/>
     <path d="M 58,8 C 108,8 108,44 58,44"/>
 
-    <!-- T  (x 114–162) -->
+    <!-- T -->
     <line x1="114" y1="8"  x2="162" y2="8"/>
     <line x1="138" y1="8"  x2="138" y2="68"/>
 
-    <!-- S  (x 170–218) -->
-    <path d="M 215,17
-             C 215,8  170,8  170,29
+    <!-- S -->
+    <path d="M 215,17 C 215,8 170,8 170,29
              C 170,44 218,44 218,58
              C 218,70 170,70 170,62"/>
 
-    <!-- A₂  (x 226–274)  — NO crossbar; contrail serves as crossbar -->
+    <!-- A₂  no crossbar — contrail is the crossbar -->
     <line x1="250" y1="8"  x2="226" y2="68"/>
     <line x1="250" y1="8"  x2="274" y2="68"/>
 
@@ -96,87 +76,118 @@
 
 
   <!-- ═══════════════════════════════════════════════════════════
-       CONTRAIL  —  left side of A₁  →  right side of A₂  →  plane tail
-       Horizontal at y=44 (crossbar height).  Single continuous path;
-       the gradient controls opacity: solid at both A crossbars,
-       whisper-faint through P / T / S, then fades over the 48 px gap.
+       CONTRAIL  —  left side A₁ (x=10) → right side A₂ (x=264) → plane tail (x=326)
        ═══════════════════════════════════════════════════════════ -->
 
   <g filter="url(#glow)">
-    <!-- Primary contrail line -->
-    <line x1="10" y1="44" x2="326" y2="44"
-          stroke="url(#contrail)"  stroke-width="4.8" stroke-linecap="round"/>
-    <!-- Secondary, slightly lower, for atmospheric spread -->
-    <line x1="10" y1="45.5" x2="326" y2="45.5"
-          stroke="url(#contrail2)" stroke-width="2"   stroke-linecap="round"/>
+    <line x1="10" y1="44"   x2="326" y2="44"
+          stroke="url(#contrail)"  stroke-width="4.6" stroke-linecap="round"/>
+    <line x1="10" y1="45.4" x2="326" y2="45.4"
+          stroke="url(#contrail2)" stroke-width="1.8" stroke-linecap="round"/>
   </g>
 
 
   <!-- ═══════════════════════════════════════════════════════════
-       AIRPLANE  —  flat commercial-jet silhouette, facing east
-       Tail at x=326 (flush with contrail end), nose at x=404
-       Fuselage centre at y=44 — aligned with the contrail line
-       Wings span y=17 to y=71  (±27 px from centre)
-       4 engine nacelles — 747-class quad layout
+       AIRPLANE  —  professional narrow-body side profile, facing east
+       ───────────────────────────────────────────────────────────
+       Construction principle: every edge is a smooth cubic bezier.
+       No polygon corners anywhere in the silhouette.
+
+       Reference geometry:
+         Fuselage  x=326–407   centre y=44   height 14 px (y=37–51)
+         Tail fin  base x=328–344  tip y=23  (swept leading edge)
+         H-stabs   root x≈328   tip x≈316   (small, clean sweep)
+         Wing      root x=370–374  tip (x=344,y=70)  dominant element
+         Engine    capsule at x=348–370  centre y=63   under wing
        ═══════════════════════════════════════════════════════════ -->
 
   <g fill="#22d3ee" filter="url(#glow)">
 
     <!--
-      FUSELAGE  —  closed path, clockwise from nose tip.
-      Upper surface: nose → upper-nose shoulder → 747 hump peak
-        → hump back-slope → main fuselage → tail upper taper.
-      Lower surface: tail lower taper → lower fuselage → lower nose → nose.
-      Hump (upper-deck) sits x=370–395, rises 7 px above main roof.
+      ── FUSELAGE ──────────────────────────────────────────────
+      Single closed path.  Upper half: nose curve → smooth taper to tail.
+      Lower half: mirror.  The tail end comes to a soft blunt point at
+      x=326,y=44, exactly where the contrail terminates.
+      The nose is a clean elliptical taper; no abrupt shoulders.
     -->
     <path d="
-      M 404,44
-      C 400,38  390,35  378,34
-      L 370,31
-      C 362,31  354,34  348,35
-      L 332,36
-      C 328,36  326,40  326,44
-      C 326,48  328,52  332,52
-      L 348,53
-      C 356,54  368,52  380,51
-      C 392,50  400,48  404,44
+      M 407,44
+      C 403,38  393,36  374,36
+      L 337,36
+      C 331,36  327,40  326,44
+      C 327,48  331,52  337,52
+      L 374,52
+      C 393,52  403,50  407,44
       Z
     "/>
 
-    <!-- VERTICAL TAIL FIN — sweeps up from fuselage at x=326–338 -->
-    <path d="M 326,36 L 330,22 L 340,24 L 342,36 Z"/>
-
-    <!-- HORIZONTAL STABILISERS — small swept wings at tail -->
-    <path d="M 326,36 L 314,28 L 317,31 L 327,36 Z"/>  <!-- upper -->
-    <path d="M 326,52 L 314,60 L 317,57 L 327,52 Z"/>  <!-- lower -->
+    <!--
+      ── VERTICAL TAIL FIN ─────────────────────────────────────
+      Swept leading edge (curves forward as it rises), near-vertical
+      trailing edge — the hallmark of a modern commercial jet fin.
+      Attaches cleanly to the fuselage top at x=329–343, y=36.
+    -->
+    <path d="
+      M 329,36
+      C 330,31  334,26  339,22
+      C 343,22  347,24  346,27
+      C 343,31  340,34  340,36
+      Z
+    "/>
 
     <!--
-      MAIN WINGS — large, swept back.
-      Root attached at ~x=365 on fuselage surface;
-      tip sweeps back to x=338, spanning y=17 (upper) and y=71 (lower).
-      Four vertices each wing:
-        Upper: front-root(365,36) · tip-leading(338,17) · tip-trailing(334,22) · rear-root(358,37)
-        Lower: front-root(365,52) · tip-leading(334,66) · tip-trailing(338,71) · rear-root(358,51)
+      ── HORIZONTAL STABILISERS ────────────────────────────────
+      Two small swept surfaces at the tail.  Each is a clean
+      four-point bezier curve — no jagged polygon edges.
     -->
-    <path d="M 365,36 L 338,17 L 334,22 L 358,37 Z"/>  <!-- upper wing -->
-    <path d="M 365,52 L 334,66 L 338,71 L 358,51 Z"/>  <!-- lower wing -->
+    <!-- Upper stabiliser -->
+    <path d="
+      M 328,40
+      C 324,39  319,38  316,36
+      C 318,36  322,38  328,39
+      Z
+    "/>
+    <!-- Lower stabiliser -->
+    <path d="
+      M 328,48
+      C 322,50  318,52  316,52
+      C 319,50  324,49  328,47
+      Z
+    "/>
 
     <!--
-      ENGINE NACELLES  —  4 pods (2 per wing), 747-quad layout.
-      Positions computed by linear interpolation along wing leading edge.
+      ── MAIN WING ─────────────────────────────────────────────
+      The hero element of the silhouette.  A gracefully swept
+      low-mounted wing — both the leading and trailing edges are
+      smooth cubic bezier curves, giving a blade-like quality.
 
-      Upper wing edge: root(365,36) → tip(338,17), length=28 px x-span.
-        Outer pod  cx=343: t=(365-343)/27=0.81 → wing_y=36+0.81×(17-36)=20.6 → cy=25  (+5 pylon)
-        Inner pod  cx=353: t=(365-353)/27=0.44 → wing_y=36+0.44×(17-36)=27.6 → cy=32  (+5 pylon)
-
-      Lower wing mirrors about y=44:
-        Inner lower cy = 44+(44-32) = 56
-        Outer lower cy = 44+(44-25) = 63
+      Root attaches at fuselage bottom (y=52) at x=370–374.
+      Leading edge sweeps back 30° to tip at (344,70).
+      Trailing edge sweeps back ~15°, creating correct taper.
+      Both edges are single C-curves — zero straight segments.
     -->
-    <ellipse cx="343" cy="25" rx="11" ry="4"/>   <!-- outer upper  -->
-    <ellipse cx="353" cy="32" rx="11" ry="4"/>   <!-- inner upper  -->
-    <ellipse cx="353" cy="56" rx="11" ry="4"/>   <!-- inner lower  -->
-    <ellipse cx="343" cy="63" rx="11" ry="4"/>   <!-- outer lower  -->
+    <path d="
+      M 374,52
+      C 363,53  351,59  344,70
+      L 348,72
+      C 355,62  367,56  371,54
+      Z
+    "/>
+
+    <!--
+      ── ENGINE NACELLE ────────────────────────────────────────
+      Clean elongated capsule — wider at the inlet (right/east side),
+      slightly tapered at the nozzle.  Hung below the wing mid-span.
+      Drawn as a single closed bezier path (not a rect) so the inlet
+      and nozzle openings read as proper rounded profiles.
+    -->
+    <path d="
+      M 370,59
+      C 376,59  377,67  371,67
+      L 349,67
+      C 343,67  342,59  348,59
+      Z
+    "/>
 
   </g>
 
