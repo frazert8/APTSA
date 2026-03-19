@@ -1,32 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 468 76" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 325 192" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
   <defs>
 
     <!--
-      Contrail gradient:
-        - Fully opaque cyan at x=266 (right end of A₂ crossbar)
-          so the contrail reads perfectly as the letter's crossbar
-        - Fades to near-transparent at the plane's tail (x=392)
-          simulating fresh wake dispersing behind the aircraft
+      Contrail gradient  —  vertical arc from A₁ crossbar (y=44) to plane tail (y=115).
+      Opaque at the letter (so it reads as the A crossbar), dissolving toward the plane
+      to simulate wake dispersing in altitude.
     -->
-    <linearGradient id="trail-main" x1="266" y1="0" x2="392" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="wake" x1="0" y1="44" x2="0" y2="118" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1"/>
-      <stop offset="45%"  stop-color="#22d3ee" stop-opacity="0.72"/>
-      <stop offset="80%"  stop-color="#22d3ee" stop-opacity="0.32"/>
-      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.08"/>
+      <stop offset="50%"  stop-color="#22d3ee" stop-opacity="0.65"/>
+      <stop offset="85%"  stop-color="#22d3ee" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.04"/>
     </linearGradient>
 
-    <linearGradient id="trail-soft" x1="266" y1="0" x2="392" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.38"/>
+    <linearGradient id="wake2" x1="0" y1="44" x2="0" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.35"/>
       <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
     </linearGradient>
 
     <!--
-      Subtle glow on the plane + contrail:
-        Composites a blurred copy beneath the sharp shape
-        for a premium, luminous look.
+      Glow filter  —  composites a soft blurred layer beneath the crisp shape,
+      giving the cyan elements (plane + contrail) a luminous premium feel.
+      Generous padding so wings and contrail tips don't clip.
     -->
-    <filter id="glow" x="-20%" y="-60%" width="140%" height="220%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2.8" result="blur"/>
+    <filter id="glow" x="-10%" y="-20%" width="120%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.6" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -36,123 +34,150 @@
   </defs>
 
 
-  <!-- ══════════════════════════════════════════════════════
+  <!-- ═══════════════════════════════════════════════════════════
        LETTERFORMS  —  geometric stroke construction
-       Cap height y=8, Baseline y=68, Stroke 5.5px round
-       Each letter occupies 48px wide with 10px kerning gap
-       ══════════════════════════════════════════════════════ -->
+       Cap y=8  ·  Baseline y=68  ·  5.5 px round cap/join
+       Letter width 48 px  ·  Inter-letter kern 10 px
+       ═══════════════════════════════════════════════════════════ -->
 
   <g stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
 
-    <!-- ── A₁  (x: 0–48) ── -->
-    <!-- Left leg: peak(24,8) → foot(0,68)   -->
-    <line x1="24"  y1="8"  x2="0"   y2="68"/>
-    <!-- Right leg: peak(24,8) → foot(48,68)  -->
-    <line x1="24"  y1="8"  x2="48"  y2="68"/>
-    <!-- Crossbar at 40% cap height (y=44); precisely intersects legs -->
-    <line x1="11"  y1="44" x2="37"  y2="44"/>
+    <!-- ── A₁  (x: 0–48)  NO crossbar — contrail is the crossbar ── -->
+    <line x1="24"  y1="8"  x2="0"   y2="68"/>  <!-- left leg  -->
+    <line x1="24"  y1="8"  x2="48"  y2="68"/>  <!-- right leg -->
 
     <!-- ── P  (x: 58–106) ── -->
-    <!-- Vertical stem -->
     <line x1="58"  y1="8"  x2="58"  y2="68"/>
-    <!-- Bowl: full cubic bezier — top(58,8) bulges right to x=108, closes at mid-stem(58,44) -->
     <path d="M 58,8 C 108,8 108,44 58,44"/>
 
     <!-- ── T  (x: 114–162) ── -->
-    <!-- Horizontal crossbar -->
     <line x1="114" y1="8"  x2="162" y2="8"/>
-    <!-- Vertical stem, centred at x=138 -->
     <line x1="138" y1="8"  x2="138" y2="68"/>
 
     <!-- ── S  (x: 170–218) ── -->
-    <!--
-      Three-segment cubic bezier tracing the full S:
-        Segment 1 (top arc): top-right terminal → sweeps left → center-left
-        Segment 2 (waist):   center-left → transitions right → lower-right
-        Segment 3 (bot arc): lower-right → sweeps left → bottom-left terminal
-    -->
     <path d="M 215,17
              C 215,8  170,8  170,29
              C 170,44 218,44 218,58
              C 218,70 170,70 170,62"/>
 
-    <!-- ── A₂  (x: 226–274)  ── -->
-    <!--
-      Intentionally NO crossbar drawn here.
-      The contrail below serves as the crossbar — the plane's
-      wake IS the middle bar of the A, uniting letter + aircraft
-      into a single design gesture.
-    -->
+    <!-- ── A₂  (x: 226–274)  WITH crossbar ── -->
     <line x1="250" y1="8"  x2="226" y2="68"/>
     <line x1="250" y1="8"  x2="274" y2="68"/>
+    <!--
+      A₂ crossbar intersection maths:
+        t = (44−8)/(68−8) = 0.6
+        x_left  = 250 + 0.6×(226−250) = 235.6 → 236
+        x_right = 250 + 0.6×(274−250) = 264.4 → 264
+    -->
+    <line x1="236" y1="44" x2="264" y2="44"/>
 
   </g>
 
 
-  <!-- ══════════════════════════════════════════════════════
-       CONTRAIL  —  connects A₂ crossbar to the plane's tail
-       ══════════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════
+       CONTRAIL  —  A₁ crossbar + arc descending to plane tail
+       The solid segment IS the missing A₁ crossbar.  The arc
+       connects it to the 747's tail, reading as a single element.
+       ═══════════════════════════════════════════════════════════ -->
 
   <g filter="url(#glow)">
 
     <!--
-      Solid segment: this IS the A₂ crossbar.
-      Positioned to exactly intersect both legs of A₂ at y=44:
-        Left intersection:  x ≈ 250 + 0.6*(226−250) = 235.6 → 236
-        Right intersection: x ≈ 250 + 0.6*(274−250) = 264.4 → 264
+      A₁ crossbar intersection maths (same formula):
+        x_left  = 24 + 0.6×(0−24)  = 9.6  → 10
+        x_right = 24 + 0.6×(48−24) = 38.4 → 38
+      Draw only the right half (x 24→38) plus the solid crossbar;
+      the arc departs from the right end (38,44).
     -->
-    <line x1="236" y1="44" x2="266" y2="44"
+    <line x1="10" y1="44" x2="38" y2="44"
           stroke="#22d3ee" stroke-width="5.5" stroke-linecap="round"/>
 
-    <!-- Primary contrail: fades from crossbar right-end to plane tail -->
-    <path d="M 266,44 C 308,44 352,40 392,33"
-          stroke="url(#trail-main)" stroke-width="4.5" stroke-linecap="round"/>
+    <!-- Primary arc: right end of crossbar → plane tail area  -->
+    <path d="M 38,44 C 41,66 44,92 42,118"
+          stroke="url(#wake)" stroke-width="4.5" stroke-linecap="round"/>
 
-    <!-- Secondary contrail: offset 2px down for atmospheric diffusion -->
-    <path d="M 266,46 C 308,47 352,43 392,36"
-          stroke="url(#trail-soft)" stroke-width="2" stroke-linecap="round"/>
+    <!-- Secondary (softer, slightly offset) for atmospheric depth  -->
+    <path d="M 38,44 C 45,68 50,96 48,121"
+          stroke="url(#wake2)" stroke-width="2.2" stroke-linecap="round"/>
 
   </g>
 
 
-  <!-- ══════════════════════════════════════════════════════
-       AIRPLANE SILHOUETTE  —  facing east (right)
-       Tail at x≈382, nose tip at x=452
-       Fuselage centre at y=33
-       Wings swept back, tail V-fins for commercial jet profile
-       ══════════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════
+       747-CLASS WIDEBODY  —  facing east (right), below the text
+       Anatomy:
+         · Fuselage  — nose x=310, tail x=20, centre y=132
+         · Upper deck "hump"  — front quarter of fuselage (247–296)
+         · Tail fin  — rises 35 px above fuselage at the tail
+         · Horizontal stabilisers  — swept mini-wings at tail
+         · Main wings  — large, swept back, centred ~x=185
+         · 4 engine nacelles  — 2 per wing, 747-quad arrangement
+       ═══════════════════════════════════════════════════════════ -->
 
   <g fill="#22d3ee" filter="url(#glow)">
 
+    <!-- ── Fuselage body + upper-deck hump (closed path) ── -->
     <!--
-      Fuselage + tail fins (single closed path):
-        Traces upper-nose → upper-fuselage → upper-tail-fin →
-        fin tip → lower-tail-fin → lower-fuselage → lower-nose → close
+      Upper surface: nose → upper-nose transition → hump peak → hump
+      back-slope → main fuselage → tail upper taper → tail tip.
+      Lower surface: tail tip → lower fuselage → lower-nose → nose.
     -->
     <path d="
-      M 452,33
-      L 440,30
-      L 396,28
-      L 385,22
-      L 382,25
-      L 390,28
-      L 390,38
-      L 382,41
-      L 385,44
-      L 396,38
-      L 440,36
+      M 310,132
+      C 304,120 290,115 272,113
+      L 252,106
+      C 242,103 232,103 220,107
+      C 210,111 200,114 185,115
+      L 72,115
+      C 55,115 40,121 28,129
+      L 20,132
+      L 28,135
+      C 40,143 55,149 72,149
+      L 248,149
+      C 274,149 296,147 310,132
       Z
     "/>
 
+    <!-- ── Vertical tail fin (rises 35 px above fuselage) ── -->
+    <path d="M 28,115 L 38,80 L 53,84 L 56,115 Z"/>
+
+    <!-- ── Horizontal stabilisers (swept mini-wings at tail) ── -->
+    <path d="M 28,115 L 10,100 L 14,104 L 30,115 Z"/>   <!-- upper stab -->
+    <path d="M 28,149 L 10,165 L 14,161 L 30,149 Z"/>   <!-- lower stab -->
+
     <!--
-      Main wings — large delta/swept-back profile.
-      Attach at x≈420 on the fuselage; tips reach back to x≈387.
-      Upper and lower wings are vertically symmetric.
+      ── Main wings ──
+      Front-root at fuselage surface ~x=196; tips swept back to x=104.
+      Upper wing top surface y=78; lower wing tip y=186 — symmetric
+      about fuselage centre (y=132).
     -->
-    <!-- Upper wing -->
-    <path d="M 420,30 L 390,17 L 387,21 L 418,32 Z"/>
-    <!-- Lower wing -->
-    <path d="M 418,34 L 387,45 L 390,49 L 420,36 Z"/>
+    <!-- Upper main wing -->
+    <path d="M 196,116 L 104,78  L  98,87  L 168,117 Z"/>
+    <!-- Lower main wing -->
+    <path d="M 196,148 L  98,177 L 104,186 L 168,147 Z"/>
+
+    <!--
+      ── Engine nacelles (4 total: 2 per wing, quad-engine 747 layout) ──
+      Positioned by linear interpolation along the wing leading edge:
+
+      Outer pair (x≈124):
+        Upper wing at x=124: t=(196−124)/92=0.78 → y=116+0.78×(78−116)=86
+          nacelle cy = 86+8 = 94  (hangs 8 px below wing underside)
+        Lower wing mirror: cy = 178−8 = 170
+
+      Inner pair (x≈154):
+        Upper wing at x=154: t=(196−154)/92=0.46 → y=116+0.46×(78−116)=98
+          nacelle cy = 98+8 = 106
+        Lower wing mirror: cy = 166−8 = 158
+    -->
+    <!-- Outer upper engine -->
+    <ellipse cx="124" cy="94"  rx="15" ry="5"/>
+    <!-- Inner upper engine -->
+    <ellipse cx="154" cy="106" rx="15" ry="5"/>
+    <!-- Inner lower engine -->
+    <ellipse cx="154" cy="158" rx="15" ry="5"/>
+    <!-- Outer lower engine -->
+    <ellipse cx="124" cy="170" rx="15" ry="5"/>
 
   </g>
 
