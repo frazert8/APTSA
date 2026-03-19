@@ -489,6 +489,20 @@
     .bh, .board-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bf-num { font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent); font-size: 13px; }
     .bf-airline { color: var(--muted); font-size: 12px; }
+    .bf-airline-badge { display: inline-block; font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }
+    .al-AA { background: rgba(8,37,103,.5);  color: #60a5fa; border: 1px solid rgba(8,37,103,.8); }
+    .al-DL { background: rgba(120,0,20,.45); color: #fca5a5; border: 1px solid rgba(120,0,20,.7); }
+    .al-UA { background: rgba(0,48,135,.45); color: #93c5fd; border: 1px solid rgba(0,48,135,.8); }
+    .al-WN { background: rgba(70,130,0,.35); color: #86efac; border: 1px solid rgba(70,130,0,.6); }
+    .al-AS { background: rgba(0,70,127,.4);  color: #7dd3fc; border: 1px solid rgba(0,70,127,.7); }
+    .al-B6 { background: rgba(0,100,160,.4); color: #bae6fd; border: 1px solid rgba(0,100,160,.7); }
+    .al-NK { background: rgba(180,140,0,.35);color: #fde68a; border: 1px solid rgba(180,140,0,.6); }
+    .al-BA { background: rgba(80,0,0,.45);   color: #fca5a5; border: 1px solid rgba(80,0,0,.8); }
+    .al-LH { background: rgba(0,36,100,.45); color: #fde68a; border: 1px solid rgba(0,36,100,.8); }
+    .al-AF { background: rgba(0,20,80,.45);  color: #a5b4fc; border: 1px solid rgba(0,20,80,.8); }
+    .al-QR { background: rgba(90,0,20,.45);  color: #fda4af; border: 1px solid rgba(90,0,20,.8); }
+    .al-EK { background: rgba(120,0,0,.45);  color: #fcd34d; border: 1px solid rgba(120,0,0,.8); }
+    .al-default { background: rgba(255,255,255,.06); color: var(--muted); border: 1px solid var(--border); }
     .bf-city { font-size: 13px; }
     .bf-city-iata { font-family: 'Courier New', monospace; font-size: 10px; color: var(--muted); }
     .bf-time { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; }
@@ -3672,7 +3686,7 @@ async function loadBoard(iata) {
     boardData = await res.json();
 
     var mockBadge = document.getElementById('boardMockBadge');
-    mockBadge.style.display = boardData.mock ? 'inline-block' : 'none';
+    if (mockBadge) mockBadge.style.display = 'none'; // always hide; data always shown
   } catch (e) {
     boardData = null;
   }
@@ -3691,6 +3705,14 @@ function fmtBoardTime(isoStr, delay) {
   return (delay && delay > 0) ? '<span class="bf-time delayed">' + base + ' +' + delay + 'm</span>' : base;
 }
 
+var AIRLINE_KNOWN_IATAS = ['AA','DL','UA','WN','AS','B6','NK','BA','LH','AF','QR','EK'];
+
+function airlineBadge(f) {
+  var code  = f.airlineIata || (f.flightIata ? f.flightIata.replace(/\d.*$/, '') : '');
+  var cls   = AIRLINE_KNOWN_IATAS.indexOf(code) !== -1 ? 'al-' + code : 'al-default';
+  return '<span class="bf-airline-badge ' + cls + '">' + esc(code || '?') + '</span>';
+}
+
 function renderBoardRows() {
   const table = document.getElementById('boardTable');
   const empty = document.getElementById('boardEmpty');
@@ -3699,7 +3721,7 @@ function renderBoardRows() {
   if (!boardData) {
     table.style.display = 'none';
     empty.style.display = 'block';
-    empty.textContent   = 'Board unavailable — add AVIATIONSTACK_API_KEY to enable.';
+    empty.textContent   = 'Unable to load flights. Please try again.';
     return;
   }
 
@@ -3707,7 +3729,7 @@ function renderBoardRows() {
   if (!flights.length) {
     table.style.display = 'none';
     empty.style.display = 'block';
-    empty.textContent   = 'No flights found.';
+    empty.textContent   = 'No flights found for this airport.';
     return;
   }
 
@@ -3720,13 +3742,13 @@ function renderBoardRows() {
 
   rows.innerHTML = flights.map(function(f) {
     var isHighlight = highlightFlt && f.flightIata && f.flightIata.toUpperCase() === highlightFlt.toUpperCase();
-    var stClass = f.status in statusLabel ? f.status : 'scheduled';
-    var stText  = statusLabel[stClass] || capitalize(f.status || 'Scheduled');
+    var stClass  = f.status in statusLabel ? f.status : 'scheduled';
+    var stText   = statusLabel[stClass] || capitalize(f.status || 'Scheduled');
     var timeHtml = fmtBoardTime(f.estimated || f.scheduled, f.delay);
     return (
       '<div class="board-row' + (isHighlight ? ' highlight' : '') + '">' +
         '<span class="bf-num">' + esc(f.flightIata || '—') + '</span>' +
-        '<span class="bf-airline">' + esc(f.airline || '—') + '</span>' +
+        '<span class="bf-airline">' + airlineBadge(f) + esc(f.airline || '—') + '</span>' +
         '<span><span class="bf-city">' + esc(f.city || '—') + '</span> <span class="bf-city-iata">' + esc(f.cityIata || '') + '</span></span>' +
         '<span class="bf-time">' + timeHtml + '</span>' +
         '<span class="bf-gate">' + esc(f.gate || f.terminal || '—') + '</span>' +
@@ -3758,6 +3780,11 @@ if (isPremium) {
 loadTerminals();
 loadGoogleMaps();
 loadBoard(document.getElementById('airportSelect').value || 'ATL');
+// Auto-refresh the board every 15 min to keep departure times current
+setInterval(function() {
+  var iata = document.getElementById('airportSelect').value || 'ATL';
+  loadBoard(iata);
+}, 15 * 60 * 1_000);
 </script>
 </body>
 </html>
