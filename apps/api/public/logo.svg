@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 468 76" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
+  <defs>
+
+    <!--
+      Contrail gradient:
+        - Fully opaque cyan at x=266 (right end of A₂ crossbar)
+          so the contrail reads perfectly as the letter's crossbar
+        - Fades to near-transparent at the plane's tail (x=392)
+          simulating fresh wake dispersing behind the aircraft
+    -->
+    <linearGradient id="trail-main" x1="266" y1="0" x2="392" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1"/>
+      <stop offset="45%"  stop-color="#22d3ee" stop-opacity="0.72"/>
+      <stop offset="80%"  stop-color="#22d3ee" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.08"/>
+    </linearGradient>
+
+    <linearGradient id="trail-soft" x1="266" y1="0" x2="392" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </linearGradient>
+
+    <!--
+      Subtle glow on the plane + contrail:
+        Composites a blurred copy beneath the sharp shape
+        for a premium, luminous look.
+    -->
+    <filter id="glow" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+  </defs>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       LETTERFORMS  —  geometric stroke construction
+       Cap height y=8, Baseline y=68, Stroke 5.5px round
+       Each letter occupies 48px wide with 10px kerning gap
+       ══════════════════════════════════════════════════════ -->
+
+  <g stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+
+    <!-- ── A₁  (x: 0–48) ── -->
+    <!-- Left leg: peak(24,8) → foot(0,68)   -->
+    <line x1="24"  y1="8"  x2="0"   y2="68"/>
+    <!-- Right leg: peak(24,8) → foot(48,68)  -->
+    <line x1="24"  y1="8"  x2="48"  y2="68"/>
+    <!-- Crossbar at 40% cap height (y=44); precisely intersects legs -->
+    <line x1="11"  y1="44" x2="37"  y2="44"/>
+
+    <!-- ── P  (x: 58–106) ── -->
+    <!-- Vertical stem -->
+    <line x1="58"  y1="8"  x2="58"  y2="68"/>
+    <!-- Bowl: full cubic bezier — top(58,8) bulges right to x=108, closes at mid-stem(58,44) -->
+    <path d="M 58,8 C 108,8 108,44 58,44"/>
+
+    <!-- ── T  (x: 114–162) ── -->
+    <!-- Horizontal crossbar -->
+    <line x1="114" y1="8"  x2="162" y2="8"/>
+    <!-- Vertical stem, centred at x=138 -->
+    <line x1="138" y1="8"  x2="138" y2="68"/>
+
+    <!-- ── S  (x: 170–218) ── -->
+    <!--
+      Three-segment cubic bezier tracing the full S:
+        Segment 1 (top arc): top-right terminal → sweeps left → center-left
+        Segment 2 (waist):   center-left → transitions right → lower-right
+        Segment 3 (bot arc): lower-right → sweeps left → bottom-left terminal
+    -->
+    <path d="M 215,17
+             C 215,8  170,8  170,29
+             C 170,44 218,44 218,58
+             C 218,70 170,70 170,62"/>
+
+    <!-- ── A₂  (x: 226–274)  ── -->
+    <!--
+      Intentionally NO crossbar drawn here.
+      The contrail below serves as the crossbar — the plane's
+      wake IS the middle bar of the A, uniting letter + aircraft
+      into a single design gesture.
+    -->
+    <line x1="250" y1="8"  x2="226" y2="68"/>
+    <line x1="250" y1="8"  x2="274" y2="68"/>
+
+  </g>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       CONTRAIL  —  connects A₂ crossbar to the plane's tail
+       ══════════════════════════════════════════════════════ -->
+
+  <g filter="url(#glow)">
+
+    <!--
+      Solid segment: this IS the A₂ crossbar.
+      Positioned to exactly intersect both legs of A₂ at y=44:
+        Left intersection:  x ≈ 250 + 0.6*(226−250) = 235.6 → 236
+        Right intersection: x ≈ 250 + 0.6*(274−250) = 264.4 → 264
+    -->
+    <line x1="236" y1="44" x2="266" y2="44"
+          stroke="#22d3ee" stroke-width="5.5" stroke-linecap="round"/>
+
+    <!-- Primary contrail: fades from crossbar right-end to plane tail -->
+    <path d="M 266,44 C 308,44 352,40 392,33"
+          stroke="url(#trail-main)" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- Secondary contrail: offset 2px down for atmospheric diffusion -->
+    <path d="M 266,46 C 308,47 352,43 392,36"
+          stroke="url(#trail-soft)" stroke-width="2" stroke-linecap="round"/>
+
+  </g>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       AIRPLANE SILHOUETTE  —  facing east (right)
+       Tail at x≈382, nose tip at x=452
+       Fuselage centre at y=33
+       Wings swept back, tail V-fins for commercial jet profile
+       ══════════════════════════════════════════════════════ -->
+
+  <g fill="#22d3ee" filter="url(#glow)">
+
+    <!--
+      Fuselage + tail fins (single closed path):
+        Traces upper-nose → upper-fuselage → upper-tail-fin →
+        fin tip → lower-tail-fin → lower-fuselage → lower-nose → close
+    -->
+    <path d="
+      M 452,33
+      L 440,30
+      L 396,28
+      L 385,22
+      L 382,25
+      L 390,28
+      L 390,38
+      L 382,41
+      L 385,44
+      L 396,38
+      L 440,36
+      Z
+    "/>
+
+    <!--
+      Main wings — large delta/swept-back profile.
+      Attach at x≈420 on the fuselage; tips reach back to x≈387.
+      Upper and lower wings are vertically symmetric.
+    -->
+    <!-- Upper wing -->
+    <path d="M 420,30 L 390,17 L 387,21 L 418,32 Z"/>
+    <!-- Lower wing -->
+    <path d="M 418,34 L 387,45 L 390,49 L 420,36 Z"/>
+
+  </g>
+
+</svg>

@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>APTSA — Airport Time Saving App</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg"/>
+  <meta name="theme-color" content="#080C14"/>
+  <meta property="og:title" content="APTSA — Airport Time Saving App"/>
+  <meta property="og:description" content="Real-time TSA wait times, flight tracking, and your personalized airport timeline."/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -45,7 +49,8 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 20px 0; border-bottom: 1px solid var(--border);
     }
-    .wordmark { font-family: 'Courier New', monospace; font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .wordmark-logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
+    @media (max-width: 480px) { .wordmark-logo { height: 28px; } }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .last-updated { font-size: 12px; color: var(--muted); }
     .btn-ghost {
@@ -747,7 +752,7 @@
 
   <!-- Nav -->
   <nav>
-    <span class="wordmark">APTSA</span>
+    <img src="/logo.svg" class="wordmark-logo" alt="APTSA — Airport Time Saving App" draggable="false"/>
     <div class="nav-right">
       <span class="last-updated" id="lastUpdated"></span>
       <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
