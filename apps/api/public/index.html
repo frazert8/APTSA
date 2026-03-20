@@ -758,26 +758,27 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
       <defs>
         <!--
-          Gradient: A1 left (x=10) → plane tail (x=320).  span=310px.
-          A1 crossbar ~x=10–40  →  0–10%
-          A2 crossbar ~x=213–243 → 65–75%
-          P / T / S dim so both A crossbars flare bright.
+          Gradient: x=10 (A1 left) → x=320 (plane tail).  span=310px.
+          A1 crossbar x=10–44  → 0–11%   — full brightness
+          A2 crossbar x=210–248 → 64–77%  — full brightness (BUG FIX: was dim here)
+          P / T / S dim in between.
         -->
         <linearGradient id="wg1" x1="10" y1="44" x2="320" y2="44" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="19%"  stop-color="#22d3ee" stop-opacity="0.16"/>
-          <stop offset="56%"  stop-color="#22d3ee" stop-opacity="0.12"/>
-          <stop offset="65%"  stop-color="#22d3ee" stop-opacity="0.18"/>
-          <stop offset="76%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="86%"  stop-color="#22d3ee" stop-opacity="0.38"/>
+          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="20%"  stop-color="#22d3ee" stop-opacity="0.15"/>
+          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.12"/>
+          <stop offset="64%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="77%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="86%"  stop-color="#22d3ee" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.03"/>
         </linearGradient>
         <linearGradient id="wg2" x1="10" y1="44" x2="320" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.24"/>
-          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.24"/>
-          <stop offset="54%"  stop-color="#22d3ee" stop-opacity="0.03"/>
-          <stop offset="70%"  stop-color="#22d3ee" stop-opacity="0.24"/>
+          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.30"/>
+          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="0.30"/>
+          <stop offset="56%"  stop-color="#22d3ee" stop-opacity="0.04"/>
+          <stop offset="64%"  stop-color="#22d3ee" stop-opacity="0.30"/>
+          <stop offset="77%"  stop-color="#22d3ee" stop-opacity="0.30"/>
           <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
         </linearGradient>
         <filter id="wglow" x="-5%" y="-500%" width="110%" height="1100%">
@@ -794,8 +795,10 @@
         -->
         <mask id="cut-ax" maskUnits="userSpaceOnUse">
           <rect x="0" y="0" width="430" height="96" fill="white"/>
-          <rect x="8"   y="39" width="36" height="10" fill="black"/>
-          <rect x="211" y="39" width="36" height="10" fill="black"/>
+          <!-- A1 crossbar: wide enough to cover full Orbitron crossbar -->
+          <rect x="6"   y="38" width="42" height="12" fill="black"/>
+          <!-- A2 crossbar: x=208–252, covers full advance of A2 at crossbar height -->
+          <rect x="208" y="38" width="44" height="12" fill="black"/>
         </mask>
       </defs>
 
@@ -812,9 +815,9 @@
       -->
       <g filter="url(#wglow)">
         <path d="M 10,44 C 36,44 46,42 73,42 C 97,42 102,44 120,44 C 137,44 143,46 166,46 C 186,46 193,44 218,44 L 248,44 L 320,44"
-              stroke="url(#wg1)" stroke-width="4.6" fill="none" stroke-linecap="round"/>
-        <path d="M 10,45.4 C 36,45.4 46,43.4 73,43.4 C 97,43.4 102,45.4 120,45.4 C 137,45.4 143,47.4 166,47.4 C 186,47.4 193,45.4 218,45.4 L 248,45.4 L 320,45.4"
-              stroke="url(#wg2)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              stroke="url(#wg1)" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <path d="M 10,45 C 36,45 46,43 73,43 C 97,43 102,45 120,45 C 137,45 143,47 166,47 C 186,47 193,45 218,45 L 248,45 L 320,45"
+              stroke="url(#wg2)" stroke-width="3" fill="none" stroke-linecap="round"/>
       </g>
 
       <!--
