@@ -755,28 +755,28 @@
 
   <!-- Nav -->
   <nav>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
       <defs>
         <!--
-          Gradient spans A1 left edge (x=10) → plane tail (x=248).
-          A1 crossbar ~x=12–36 (0–11%), A2 crossbar ~x=206–230 (83–92%).
+          Gradient spans A1 left edge (x=10) → plane tail (x=290).
+          A1 crossbar ~x=12–36 (0–9%), A2 crossbar ~x=210–234 (71–81%).
           P / T / S region stays dim so both A crossbars flare bright.
         -->
-        <linearGradient id="wg1" x1="10" y1="44" x2="248" y2="44" gradientUnits="userSpaceOnUse">
+        <linearGradient id="wg1" x1="10" y1="44" x2="290" y2="44" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="20%"  stop-color="#22d3ee" stop-opacity="0.18"/>
-          <stop offset="60%"  stop-color="#22d3ee" stop-opacity="0.13"/>
-          <stop offset="74%"  stop-color="#22d3ee" stop-opacity="0.20"/>
-          <stop offset="86%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="95%"  stop-color="#22d3ee" stop-opacity="0.55"/>
+          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="18%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.13"/>
+          <stop offset="70%"  stop-color="#22d3ee" stop-opacity="0.20"/>
+          <stop offset="82%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="92%"  stop-color="#22d3ee" stop-opacity="0.40"/>
           <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.04"/>
         </linearGradient>
-        <linearGradient id="wg2" x1="10" y1="44" x2="248" y2="44" gradientUnits="userSpaceOnUse">
+        <linearGradient id="wg2" x1="10" y1="44" x2="290" y2="44" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.26"/>
-          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="0.26"/>
-          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.04"/>
-          <stop offset="78%"  stop-color="#22d3ee" stop-opacity="0.26"/>
+          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.26"/>
+          <stop offset="56%"  stop-color="#22d3ee" stop-opacity="0.04"/>
+          <stop offset="76%"  stop-color="#22d3ee" stop-opacity="0.26"/>
           <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
         </linearGradient>
         <filter id="wglow" x="-5%" y="-500%" width="110%" height="1100%">
@@ -789,27 +789,25 @@
       <text x="0" y="70" font-family="Orbitron, sans-serif" font-weight="700" font-size="68" letter-spacing="6" fill="white">APTSA</text>
 
       <!--
-        CONTRAIL — serves as crossbar for both A's, threads between other letters.
-        y=44 at A crossbars, rises to y=42 through P (above the bowl),
-        stays level through T stem, dips to y=46 through S waist, returns y=44 for A2.
-        Tail locks onto plane at (248, 44).
+        CONTRAIL — threads A crossbars, weaves between P/T/S, fades to tail.
+        Tail locks onto plane at (290, 44), just past end of last A.
       -->
       <g filter="url(#wglow)">
-        <path d="M 10,44 C 36,44 46,42 73,42 C 97,42 102,44 120,44 C 137,44 143,46 166,46 C 186,46 193,44 212,44 L 235,44 L 248,44"
+        <path d="M 10,44 C 36,44 46,42 73,42 C 97,42 102,44 120,44 C 137,44 143,46 166,46 C 186,46 193,44 215,44 L 245,44 L 290,44"
               stroke="url(#wg1)" stroke-width="4.6" fill="none" stroke-linecap="round"/>
-        <path d="M 10,45.4 C 36,45.4 46,43.4 73,43.4 C 97,43.4 102,45.4 120,45.4 C 137,45.4 143,47.4 166,47.4 C 186,47.4 193,45.4 212,45.4 L 235,45.4 L 248,45.4"
+        <path d="M 10,45.4 C 36,45.4 46,43.4 73,43.4 C 97,43.4 102,45.4 120,45.4 C 137,45.4 143,47.4 166,47.4 C 186,47.4 193,45.4 215,45.4 L 245,45.4 L 290,45.4"
               stroke="url(#wg2)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
       </g>
 
       <!--
-        AIRPLANE — nose facing east (0°), tail at (248, 44) = end of APTSA.
-        transform: translate(289,44) scale(0.9) translate(-50,-50)
-        tail  (5,50)  → (248, 44) ✓
-        nose (95,50)  → (330, 44) ✓
-        wing top (38,16) → (278, 13)
-        wing bot (38,84) → (278, 75)
+        AIRPLANE — nose facing east (0°), tail at (290, 44) = just past last A.
+        transform: translate(331,44) scale(0.9) translate(-50,-50)
+        tail  (5,50)  → (290, 44) ✓
+        nose (95,50)  → (372, 44) ✓
+        wing top (38,16) → (320, 13)
+        wing bot (38,84) → (320, 75)
       -->
-      <path transform="translate(289,44) scale(0.9) translate(-50,-50)"
+      <path transform="translate(331,44) scale(0.9) translate(-50,-50)"
             fill="#22d3ee" d="
         M 95,50
         C 93,44  85,44  78,44
