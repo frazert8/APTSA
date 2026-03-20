@@ -52,7 +52,7 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 20px 0; border-bottom: 1px solid var(--border);
     }
-    .wordmark-logo { height: 52px; width: auto; display: block; flex-shrink: 0; }
+    .wordmark-logo { height: 52px; width: auto; display: block; flex-shrink: 0; overflow: visible; }
     @media (max-width: 480px) { .wordmark-logo { height: 40px; } }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .last-updated { font-size: 12px; color: var(--muted); }
@@ -755,36 +755,85 @@
 
   <!-- Nav -->
   <nav>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
       <defs>
-        <linearGradient id="cg1" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
+        <!--
+          Gradient spans A1 left edge (x=10) → plane tail (x=248).
+          A1 crossbar ~x=12–36 (0–11%), A2 crossbar ~x=206–230 (83–92%).
+          P / T / S region stays dim so both A crossbars flare bright.
+        -->
+        <linearGradient id="wg1" x1="10" y1="44" x2="248" y2="44" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="18%"  stop-color="#22d3ee" stop-opacity="0.20"/>
-          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.14"/>
-          <stop offset="70%"  stop-color="#22d3ee" stop-opacity="0.22"/>
-          <stop offset="83%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="92%"  stop-color="#22d3ee" stop-opacity="0.60"/>
-          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.05"/>
+          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="20%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+          <stop offset="60%"  stop-color="#22d3ee" stop-opacity="0.13"/>
+          <stop offset="74%"  stop-color="#22d3ee" stop-opacity="0.20"/>
+          <stop offset="86%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="95%"  stop-color="#22d3ee" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.04"/>
         </linearGradient>
-        <linearGradient id="cg2" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.28"/>
-          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.28"/>
-          <stop offset="55%"  stop-color="#22d3ee" stop-opacity="0.05"/>
-          <stop offset="75%"  stop-color="#22d3ee" stop-opacity="0.28"/>
+        <linearGradient id="wg2" x1="10" y1="44" x2="248" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.26"/>
+          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="0.26"/>
+          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.04"/>
+          <stop offset="78%"  stop-color="#22d3ee" stop-opacity="0.26"/>
           <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
         </linearGradient>
-        <filter id="lglow" x="-5%" y="-400%" width="110%" height="900%">
+        <filter id="wglow" x="-5%" y="-500%" width="110%" height="1100%">
           <feGaussianBlur stdDeviation="1.2" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
+
+      <!-- APTSA — Orbitron Bold -->
       <text x="0" y="70" font-family="Orbitron, sans-serif" font-weight="700" font-size="68" letter-spacing="6" fill="white">APTSA</text>
-      <g filter="url(#lglow)">
-        <path d="M 10,44 L 272,44" stroke="url(#cg1)" stroke-width="4.6" fill="none" stroke-linecap="round"/>
-        <path d="M 10,45.4 L 272,45.4" stroke="url(#cg2)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+      <!--
+        CONTRAIL — serves as crossbar for both A's, threads between other letters.
+        y=44 at A crossbars, rises to y=42 through P (above the bowl),
+        stays level through T stem, dips to y=46 through S waist, returns y=44 for A2.
+        Tail locks onto plane at (248, 44).
+      -->
+      <g filter="url(#wglow)">
+        <path d="M 10,44 C 36,44 46,42 73,42 C 97,42 102,44 120,44 C 137,44 143,46 166,46 C 186,46 193,44 212,44 L 235,44 L 248,44"
+              stroke="url(#wg1)" stroke-width="4.6" fill="none" stroke-linecap="round"/>
+        <path d="M 10,45.4 C 36,45.4 46,43.4 73,43.4 C 97,43.4 102,45.4 120,45.4 C 137,45.4 143,47.4 166,47.4 C 186,47.4 193,45.4 212,45.4 L 235,45.4 L 248,45.4"
+              stroke="url(#wg2)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
       </g>
-      <path transform="translate(309,27) rotate(-25) scale(0.9) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+
+      <!--
+        AIRPLANE — nose facing east (0°), tail at (248, 44) = end of APTSA.
+        transform: translate(289,44) scale(0.9) translate(-50,-50)
+        tail  (5,50)  → (248, 44) ✓
+        nose (95,50)  → (330, 44) ✓
+        wing top (38,16) → (278, 13)
+        wing bot (38,84) → (278, 75)
+      -->
+      <path transform="translate(289,44) scale(0.9) translate(-50,-50)"
+            fill="#22d3ee" d="
+        M 95,50
+        C 93,44  85,44  78,44
+        L 62,44
+        L 38,16
+        L 32,22
+        L 52,44
+        L 22,44
+        L 10,34
+        L 14,44
+        L  6,44
+        C  5,46   5,48   5,50
+        C  5,52   5,54   6,56
+        L 14,56
+        L 10,66
+        L 22,56
+        L 52,56
+        L 32,78
+        L 38,84
+        L 62,56
+        L 78,56
+        C 85,56  93,56  95,50
+        Z
+      "/>
     </svg>
     <div class="nav-right">
       <span class="last-updated" id="lastUpdated"></span>
