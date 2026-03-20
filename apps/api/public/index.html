@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>APTSA — Airport Time Saving App</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap"/>
   <meta name="theme-color" content="#080C14"/>
   <meta property="og:title" content="APTSA — Airport Time Saving App"/>
   <meta property="og:description" content="Real-time TSA wait times, flight tracking, and your personalized airport timeline."/>
@@ -49,8 +52,8 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 20px 0; border-bottom: 1px solid var(--border);
     }
-    .wordmark-logo { height: 52px; width: 211px; display: block; flex-shrink: 0; }
-    @media (max-width: 480px) { .wordmark-logo { height: 40px; width: 163px; } }
+    .wordmark-logo { height: 52px; width: auto; display: block; flex-shrink: 0; }
+    @media (max-width: 480px) { .wordmark-logo { height: 40px; } }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .last-updated { font-size: 12px; color: var(--muted); }
     .btn-ghost {
@@ -752,7 +755,37 @@
 
   <!-- Nav -->
   <nav>
-    <object type="image/svg+xml" data="/logo.svg" class="wordmark-logo" aria-label="APTSA — Airport Time Saving App" tabindex="-1"></object>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
+      <defs>
+        <linearGradient id="cg1" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="18%"  stop-color="#22d3ee" stop-opacity="0.20"/>
+          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.14"/>
+          <stop offset="70%"  stop-color="#22d3ee" stop-opacity="0.22"/>
+          <stop offset="83%"  stop-color="#22d3ee" stop-opacity="1.00"/>
+          <stop offset="92%"  stop-color="#22d3ee" stop-opacity="0.60"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="cg2" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.28"/>
+          <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.28"/>
+          <stop offset="55%"  stop-color="#22d3ee" stop-opacity="0.05"/>
+          <stop offset="75%"  stop-color="#22d3ee" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
+        </linearGradient>
+        <filter id="lglow" x="-5%" y="-400%" width="110%" height="900%">
+          <feGaussianBlur stdDeviation="1.2" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <text x="0" y="70" font-family="Orbitron, sans-serif" font-weight="700" font-size="68" letter-spacing="6" fill="white">APTSA</text>
+      <g filter="url(#lglow)">
+        <path d="M 10,44 L 272,44" stroke="url(#cg1)" stroke-width="4.6" fill="none" stroke-linecap="round"/>
+        <path d="M 10,45.4 L 272,45.4" stroke="url(#cg2)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      </g>
+      <path transform="translate(309,27) rotate(-25) scale(0.9) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+    </svg>
     <div class="nav-right">
       <span class="last-updated" id="lastUpdated"></span>
       <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
