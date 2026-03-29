@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@800&display=swap"/>
   <meta name="theme-color" content="#080C14"/>
   <meta property="og:title" content="APTSA — Airport Time Saving App"/>
   <meta property="og:description" content="Real-time TSA wait times, flight tracking, and your personalized airport timeline."/>
@@ -52,8 +52,8 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 20px 0; border-bottom: 1px solid var(--border);
     }
-    .wordmark-logo { height: 52px; width: auto; display: block; flex-shrink: 0; overflow: visible; }
-    @media (max-width: 480px) { .wordmark-logo { height: 40px; } }
+    .wordmark-logo { height: 100px; width: auto; display: block; flex-shrink: 0; overflow: visible; }
+    @media (max-width: 480px) { .wordmark-logo { height: 77px; } }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .last-updated { font-size: 12px; color: var(--muted); }
     .btn-ghost {
@@ -748,441 +748,463 @@
     }
     .apple-maps-btn.visible { display: flex; }
     .apple-maps-btn:hover { background: rgba(0,122,255,0.18); }
+
+    /* ══ VIEW SYSTEM ══════════════════════════════════════════════ */
+    .app-view { display: none; min-height: 100vh; }
+    .app-view.active { display: block; animation: viewFadeIn 0.4s cubic-bezier(0.22,1,0.36,1); }
+    @keyframes viewFadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ══ SPLASH ═══════════════════════════════════════════════════ */
+    .splash-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 20px; text-align:center; }
+    .splash-logo { height:90px; width:auto; margin-bottom:32px; }
+    .splash-tagline { font-size:clamp(14px,2vw,16px); color:var(--muted); max-width:420px; margin:0 auto 36px; line-height:1.6; }
+    .mode-buttons { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:560px; width:100%; }
+    @media (max-width:540px) { .mode-buttons { grid-template-columns:1fr; } }
+    .mode-btn { display:flex; flex-direction:column; align-items:center; gap:14px; padding:36px 24px; border-radius:24px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); backdrop-filter:blur(20px); transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s; }
+    .mode-btn:hover { transform:translateY(-4px); border-color:var(--border-h); box-shadow:0 20px 60px rgba(0,0,0,0.4); }
+    .mode-btn-icon { font-size:44px; line-height:1; }
+    .mode-btn-label { font-size:18px; font-weight:800; letter-spacing:-0.5px; }
+    .mode-btn-desc { font-size:13px; color:var(--muted); line-height:1.5; margin-top:-6px; }
+    .departure-btn { border-color:rgba(59,130,246,0.3); }
+    .departure-btn:hover { border-color:rgba(59,130,246,0.6); box-shadow:0 20px 60px rgba(59,130,246,0.15); }
+    .departure-btn .mode-btn-label { color:var(--accent); }
+    .tracker-btn { border-color:rgba(34,211,238,0.3); }
+    .tracker-btn:hover { border-color:rgba(34,211,238,0.6); box-shadow:0 20px 60px rgba(34,211,238,0.12); }
+    .tracker-btn .mode-btn-label { color:var(--safe); }
+
+    /* ══ LOCATION VIEW ════════════════════════════════════════════ */
+    .loc-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 20px; text-align:center; }
+    .loc-icon { font-size:72px; margin-bottom:24px; }
+    .loc-title { font-size:clamp(22px,5vw,34px); font-weight:800; letter-spacing:-1px; margin-bottom:12px; }
+    .loc-sub { font-size:14px; color:var(--muted); max-width:340px; margin:0 auto 36px; line-height:1.6; }
+    .loc-buttons { display:flex; flex-direction:column; gap:12px; width:100%; max-width:320px; }
+    .mode-allow-btn { width:100%; padding:16px; border-radius:16px; background:linear-gradient(135deg,var(--accent),#6366f1); color:#fff; border:none; font-size:16px; font-weight:700; cursor:pointer; transition:opacity 0.2s,transform 0.15s; }
+    .mode-allow-btn:hover { opacity:0.88; transform:translateY(-1px); }
+    .mode-allow-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .mode-skip-btn { width:100%; padding:14px; border-radius:16px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--muted); font-size:14px; font-weight:600; cursor:pointer; }
+    .mode-skip-btn:hover { border-color:var(--border-h); color:var(--text); }
+
+    /* ══ VIEW TOPBAR ══════════════════════════════════════════════ */
+    .view-topbar { position:sticky; top:0; z-index:100; background:rgba(8,12,20,0.92); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 20px; }
+    .view-topbar-inner { max-width:980px; margin:0 auto; display:flex; align-items:center; gap:12px; height:64px; }
+    .back-btn { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); padding:8px 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all 0.2s; flex-shrink:0; }
+    .back-btn:hover { color:var(--text); border-color:var(--border-h); }
+    .topbar-logo { height:50px; width:auto; display:block; flex-shrink:0; }
+    .topbar-spacer { flex:1; min-width:0; }
+    .topbar-flight-wrap { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+
+    /* ══ DEP HEADER ROW ══════════════════════════════════════════ */
+    .dep-header-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 0 10px; }
+
+    /* ══ TRACKER TABS ════════════════════════════════════════════ */
+    .tracker-tabs { display:flex; gap:8px; padding:16px 0 8px; }
+    .tracker-tab { display:flex; align-items:center; gap:7px; padding:10px 20px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--muted); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .tracker-tab.active { background:rgba(34,211,238,0.08); border-color:rgba(34,211,238,0.3); color:var(--safe); }
+    .tracker-tab:hover:not(.active) { border-color:var(--border-h); color:var(--text); }
+
+    /* ══ LEAVE MODAL ═════════════════════════════════════════════ */
+    .leave-modal-overlay { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.75); backdrop-filter:blur(12px); display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s; }
+    .leave-modal-overlay.open { opacity:1; pointer-events:all; }
+    .leave-modal-card { background:linear-gradient(170deg,#0d1525 0%,#080c18 100%); border:1px solid rgba(34,211,238,0.25); border-bottom:none; border-radius:28px 28px 0 0; padding:32px 28px 48px; width:100%; max-width:560px; position:relative; transform:translateY(100%); transition:transform 0.4s cubic-bezier(0.22,1,0.36,1); box-shadow:0 -20px 60px rgba(0,0,0,0.6); }
+    .leave-modal-overlay.open .leave-modal-card { transform:translateY(0); }
+    .leave-modal-handle { width:48px; height:4px; background:rgba(255,255,255,0.15); border-radius:99px; margin:0 auto 24px; }
+    .leave-modal-close { position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); width:30px; height:30px; border-radius:50%; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .leave-modal-close:hover { background:rgba(255,255,255,0.12); color:var(--text); }
+    .leave-modal-title { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; }
+    .leave-modal-card .calc-result { display:block !important; }
+    .leave-modal-card .uber-cta { display:flex !important; }
   </style>
 </head>
 <body>
-<div class="container">
 
-  <!-- Nav -->
-  <nav>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 96" class="wordmark-logo" role="img" aria-label="APTSA — Airport Time Saving App">
-      <defs>
-        <!--
-          Gradient: x=10 (A1 left) → x=320 (plane tail).  span=310px.
-          A1 crossbar x=10–44  → 0–11%   — full brightness
-          A2 crossbar x=210–248 → 64–77%  — full brightness (BUG FIX: was dim here)
-          P / T / S dim in between.
-        -->
-        <linearGradient id="wg1" x1="10" y1="44" x2="320" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="20%"  stop-color="#22d3ee" stop-opacity="0.15"/>
-          <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.12"/>
-          <stop offset="64%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="77%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-          <stop offset="86%"  stop-color="#22d3ee" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.03"/>
-        </linearGradient>
-        <linearGradient id="wg2" x1="10" y1="44" x2="320" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.30"/>
-          <stop offset="11%"  stop-color="#22d3ee" stop-opacity="0.30"/>
-          <stop offset="56%"  stop-color="#22d3ee" stop-opacity="0.04"/>
-          <stop offset="64%"  stop-color="#22d3ee" stop-opacity="0.30"/>
-          <stop offset="77%"  stop-color="#22d3ee" stop-opacity="0.30"/>
-          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
-        </linearGradient>
-        <filter id="wglow" x="-5%" y="-500%" width="110%" height="1100%">
-          <feGaussianBlur stdDeviation="1.4" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <!--
-          Mask that removes the Orbitron A crossbars so the cyan contrail
-          IS the crossbar for both A's.
-          White = show, Black = hide (cut out).
-          A1 crossbar band: x=8–44,  y=39–49
-          A2 crossbar band: x=211–247, y=39–49
-          (Orbitron Bold 68px, baseline y=70: cap-top y=22, crossbar y≈44)
-        -->
-        <mask id="cut-ax" maskUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="430" height="96" fill="white"/>
-          <!-- A1 crossbar: wide enough to cover full Orbitron crossbar -->
-          <rect x="6"   y="38" width="42" height="12" fill="black"/>
-          <!-- A2 crossbar: x=208–252, covers full advance of A2 at crossbar height -->
-          <rect x="208" y="38" width="44" height="12" fill="black"/>
-        </mask>
-      </defs>
-
-      <!-- APTSA — Orbitron Bold, A crossbars masked out (contrail replaces them) -->
-      <text x="0" y="70"
-            font-family="Orbitron, sans-serif" font-weight="700"
-            font-size="68" letter-spacing="6" fill="white"
-            mask="url(#cut-ax)">APTSA</text>
-
-      <!--
-        CONTRAIL — IS the crossbar of both A's, weaves between P/T/S.
-        Exactly y=44 at A1 and A2 positions. Slight wave between letters.
-        Tail at (320, 44) — just past end of last A.
-      -->
-      <g filter="url(#wglow)">
-        <path d="M 10,44 C 36,44 46,42 73,42 C 97,42 102,44 120,44 C 137,44 143,46 166,46 C 186,46 193,44 218,44 L 248,44 L 320,44"
-              stroke="url(#wg1)" stroke-width="8" fill="none" stroke-linecap="round"/>
-        <path d="M 10,45 C 36,45 46,43 73,43 C 97,43 102,45 120,45 C 137,45 143,47 166,47 C 186,47 193,45 218,45 L 248,45 L 320,45"
-              stroke="url(#wg2)" stroke-width="3" fill="none" stroke-linecap="round"/>
-      </g>
-
-      <!--
-        AIRPLANE — nose east (0°), tail at (320, 44).
-        translate(361,44) scale(0.9) translate(-50,-50)
-        tail (5,50)  → (320, 44) ✓
-        nose (95,50) → (402, 44) ✓
-      -->
-      <path transform="translate(361,44) scale(0.9) translate(-50,-50)"
-            fill="#22d3ee" d="
-        M 95,50
-        C 93,44  85,44  78,44
-        L 62,44
-        L 38,16
-        L 32,22
-        L 52,44
-        L 22,44
-        L 10,34
-        L 14,44
-        L  6,44
-        C  5,46   5,48   5,50
-        C  5,52   5,54   6,56
-        L 14,56
-        L 10,66
-        L 22,56
-        L 52,56
-        L 32,78
-        L 38,84
-        L 62,56
-        L 78,56
-        C 85,56  93,56  95,50
-        Z
-      "/>
-    </svg>
-    <div class="nav-right">
-      <span class="last-updated" id="lastUpdated"></span>
-      <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
-      <button class="btn-premium" onclick="showPremiumModal()">⚡ Premium</button>
-    </div>
-  </nav>
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="badge"><span class="badge-dot"></span> AI-Powered TSA Intelligence</div>
-    <h1>Skip the guess.<br /><span>Know the wait.</span></h1>
-    <p class="hero-sub">Real-time TSA wait times, AI delay detection, and a smart departure calculator so you never miss a flight.</p>
-  </section>
-
-  <!-- Control Bar: Airport + Flight Number -->
-  <div class="glass control-bar">
-    <span class="ctrl-label">Airport</span>
-    <select id="airportSelect" onchange="onAirportChange()" style="min-width:210px;">
-      <!-- populated alphabetically by JS -->
-    </select>
-    <button class="location-btn" id="locationBtn" onclick="detectNearestAirport()">📍 Use My Location</button>
-    <span class="location-badge" id="locationBadge">📍 <span id="locationLabel"></span></span>
-    <div class="ctrl-divider"></div>
-    <span class="ctrl-label">Flight #</span>
-    <div class="flight-wrap">
-      <span class="flight-icon">✈</span>
-      <input type="text" id="flightInput" placeholder="AA123, UA456…"
-             maxlength="8"
-             oninput="this.value=this.value.toUpperCase()"
-             onkeydown="if(event.key==='Enter')lookupFlight()" />
-    </div>
-    <button class="analyze-btn" id="lookupBtn" onclick="lookupFlight()">Analyze Flight</button>
-  </div>
-
-  <!-- 1st widget: TSA Intelligence (live wait times) -->
-  <section class="wait-section">
-    <div class="section-header">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span class="section-label">TSA Intelligence —&nbsp;
-          <span class="iata-badge" id="airportBadge">
-            <span id="airportBadgeCode">ATL</span>
-            <div class="iata-tooltip">
-              <div class="tooltip-name" id="tooltipName">Loading…</div>
-              <div class="tooltip-detail" id="tooltipDetail"></div>
-            </div>
-          </span>
-        </span>
-        <span class="departures-badge" id="departuresBadge">—</span>
-      </div>
-      <span class="live-pill" id="liveIndicator">Live</span>
-    </div>
-    <!-- FAA delay alerts (FlightAware) -->
-    <div class="delay-alerts" id="delayAlerts"></div>
-
-    <div class="terminals-grid" id="terminalsGrid">
-      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-      <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-    </div>
-  </section>
-
-  <!-- 2nd widget: Gate Zero™ (above map) -->
-  <section class="gate-zero" id="gate-zero">
-    <div class="section-header">
-      <span class="section-label">Departure Intelligence</span>
-      <span class="premium-pill" onclick="showPremiumModal()">⚡ Unlock AI Delay Alerts</span>
-    </div>
-    <div class="glass gate-zero-card">
-      <div class="gz-title">Gate Zero™ <span>Departure Calculator</span></div>
-      <p class="gz-sub">Enter your flight and we calculate precisely when to leave — using predicted wait times at your arrival, not just what it is right now.</p>
-
-      <div class="gz-fields">
-        <div class="field-group">
-          <label class="field-label" for="flightTime">Flight Departure</label>
-          <select id="flightTime" onchange="calculate()">
-            <option value="">Select time…</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Drive Time (min)</label>
-          <div class="drive-row">
-            <input type="number" id="driveTime" value="30" min="0" max="300" oninput="calculate()" placeholder="min" />
-            <button class="btn-locate" id="driveLocateBtn" onclick="calcDriveTime()" title="Auto-calculate from my location">📍</button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="checkpointSelect">TSA Checkpoint</label>
-          <select id="checkpointSelect" onchange="calculate()">
-            <option value="">Select checkpoint…</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="bufferTime">Safety Buffer (min)</label>
-          <select id="bufferTime" onchange="calculate()">
-            <option value="5">5 min</option>
-            <option value="10">10 min</option>
-            <option value="15" selected>15 min</option>
-            <option value="20">20 min</option>
-            <option value="25">25 min</option>
-            <option value="30">30 min</option>
-            <option value="35">35 min</option>
-            <option value="40">40 min</option>
-            <option value="45">45 min</option>
-            <option value="60">60 min</option>
-            <option value="90">90 min</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Connecting flight legs -->
-      <div class="legs-panel" id="legsPanel">
-        <div class="legs-title">✈ Flight Legs</div>
-        <div id="legsList"></div>
-      </div>
-
-      <!-- AI delay analysis panel -->
-      <div class="ai-panel" id="aiPanel">
-        <div class="ai-panel-head">
-          <span style="font-size:15px;">🤖</span>
-          <span class="ai-panel-title">AI Delay Detection</span>
-          <span class="ai-badge">Live</span>
-        </div>
-        <div class="ai-loading" id="aiLoading" style="display:none;">
-          <div class="spinner"></div>
-          <span>Tracking inbound aircraft…</span>
-        </div>
-        <div id="aiData" style="display:none;">
-          <div class="ai-grid" id="aiGrid"></div>
-          <div class="delay-risk" id="delayRisk"></div>
-          <p class="ai-note" id="aiNote"></p>
-        </div>
-      </div>
-
-      <!-- Result -->
-      <p class="no-flight-msg" id="noFlightMsg">Enter your departure time above to calculate when to leave.</p>
-      <div class="calc-result" id="calcResult">
-        <div class="result-row">
-          <div>
-            <div class="result-lbl">Leave By</div>
-            <div class="result-time" id="resultTime">—</div>
-          </div>
-          <div style="flex:1;">
-            <div class="result-pills" id="resultPills"></div>
-            <p class="result-note" id="resultNote"></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Uber CTA — shown immediately when a departure time is selected -->
-      <div class="uber-cta" id="uberCta" onclick="openUber()">
-        <span class="uber-logo">🚗</span>
-        <div class="uber-text">
-          <div class="uber-hl">Book a ride — leave at <span id="uberLeaveTime">the right time</span></div>
-          <div class="uber-sub">Zero wasted time — arrive right when you need to, not an hour early.</div>
-        </div>
-        <span class="uber-code">APTSA</span>
-        <button class="uber-btn" onclick="event.stopPropagation();openUber()">Book Now</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Airport Map -->
-  <section class="map-section">
-
-    <!-- Header row -->
-    <div class="section-header" style="margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span class="section-label">Live Air Traffic Map</span>
-        <span class="live-pill" id="trafficCount" style="min-width:90px;">Loading…</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button class="board-tab active" id="trafficToggleBtn" onclick="toggleLiveTraffic()" style="font-size:11px;">⏹ Hide Traffic</button>
-        <span class="premium-pill" onclick="showPremiumModal()">🔒 Premium — Push Alerts</span>
-      </div>
-    </div>
-
-    <!-- Airline filter -->
-    <div class="airline-filter-bar" id="airlineFilterBar">
-      <span class="af-label">Filter Airline</span>
-      <div class="af-select-wrap">
-        <select id="airlineFilterSelect" onchange="onAirlineFilter(this.value)">
-          <option value="ALL">All Airlines</option>
-        </select>
-      </div>
-      <span class="af-hint" id="afHint"></span>
-    </div>
-
-    <!-- Map + side panel container -->
-    <div class="map-container" id="mapContainer">
-
-      <!-- Plane detail side panel -->
-      <div class="plane-panel glass" id="planePanel">
-        <button class="panel-close-btn" onclick="closePlanePanel()" title="Close">✕</button>
-        <div id="planePanelContent"></div>
-        <div id="panelMiniMap">
-          <div class="panel-minimap-label">Route</div>
-          <div id="panelMiniMapCanvas"></div>
-        </div>
-      </div>
-
-      <!-- Map -->
-      <div class="map-wrap" id="mapWrap">
-        <div id="airport-map"></div>
-        <div id="mapLockOverlay" onclick="showPremiumModal()">
-          <div class="lock-icon">🔒</div>
-          <div class="lock-title">Live Radar Locked</div>
-          <div class="lock-sub">Enter your access code to view real-time flight tracking</div>
-          <button class="lock-btn">Unlock Premium</button>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Airline legend -->
-    <div class="airline-legend" id="airlineLegend"></div>
-
-    <!-- Multi-airport picker (shown when metro area has multiple airports) -->
-    <div class="airport-route-picker" id="airportRoutePicker">
-      <span class="arp-label">Route to Airport</span>
-      <div id="arpButtons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-    </div>
-
-    <!-- Route info (shown after location detected) -->
-    <div class="route-strip" id="routeStrip">
-      <div class="route-stat">
-        <div class="route-stat-label">Drive Time</div>
-        <div class="route-stat-value" id="routeDrive">—</div>
-      </div>
-      <div class="route-divider"></div>
-      <div class="route-stat">
-        <div class="route-stat-label">Distance</div>
-        <div class="route-stat-value" id="routeDist">—</div>
-      </div>
-      <div class="route-divider"></div>
-      <div class="route-summary" id="routeSummary"></div>
-      <span class="route-autofill-note">✓ Drive time auto-filled in calculator</span>
-      <button class="apple-maps-btn" id="appleMapsBtn" onclick="openAppleMaps()">🗺 Open in Apple Maps</button>
-    </div>
-  </section>
-
-  <!-- Inbound Tracker -->
-  <section class="inbound-section" id="inboundSection" style="display:none; margin-bottom:28px;">
-    <div class="section-header">
-      <span class="section-label">Inbound Aircraft Status</span>
-      <span class="live-pill">Tracking</span>
-    </div>
-    <div class="glass inbound-card" id="inboundCard">
-      <!-- filled by renderInboundTracker() -->
-    </div>
-  </section>
-
-  <!-- Flight Board -->
-  <section class="board-section" id="boardSection" style="margin-bottom:44px;">
-    <div class="section-header">
-      <span class="section-label">Live Flight Board — <span id="boardAirportLabel">ATL</span></span>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span class="board-mock-badge" id="boardMockBadge" style="display:none;">Demo Data</span>
-        <button class="board-tab active" id="tabDep" onclick="switchTab('dep')">Departures</button>
-        <button class="board-tab" id="tabArr" onclick="switchTab('arr')">Arrivals</button>
-      </div>
-    </div>
-    <div class="glass board-wrap">
-      <div id="boardLoading" class="board-loading">
-        <div class="spinner" style="width:18px;height:18px;border-color:rgba(255,255,255,.1);border-top-color:var(--accent);"></div>
-        <span>Loading flight board…</span>
-      </div>
-      <div id="boardTable" style="display:none;">
-        <div class="board-header-row">
-          <span class="bh flight">Flight</span>
-          <span class="bh airline">Airline</span>
-          <span class="bh city" id="boardCityHeader">Destination</span>
-          <span class="bh time">Time</span>
-          <span class="bh gate">Gate</span>
-          <span class="bh status">Status</span>
-        </div>
-        <div id="boardRows"></div>
-      </div>
-      <div id="boardEmpty" class="board-empty" style="display:none;">No flights found for this airport.</div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <div class="features">
-    <div class="glass feature-card">
-      <span class="feature-icon">⚡</span>
-      <div class="feature-title">Always Current</div>
-      <p class="feature-desc">Wait times refresh every 60 seconds from live travelers blended with official TSA data for maximum accuracy.</p>
-    </div>
-    <div class="glass feature-card">
-      <span class="feature-icon">🤖</span>
-      <div class="feature-title">AI Delay Detection</div>
-      <p class="feature-desc">Track your inbound aircraft in real time. If your plane hasn't left its origin airport, we predict the delay before the airline announces it.</p>
-      <span class="feature-premium">⚡ Premium</span>
-    </div>
-    <div class="glass feature-card">
-      <span class="feature-icon">🎯</span>
-      <div class="feature-title">Gate Zero™</div>
-      <p class="feature-desc">Calculates exactly when to leave using predicted wait at your arrival time — not the current wait that may change before you get there.</p>
-    </div>
-    <div class="glass feature-card">
-      <span class="feature-icon">🗺️</span>
-      <div class="feature-title">Live Air Traffic</div>
-      <p class="feature-desc">See every aircraft around your airport with real-time position, altitude, speed, and delay status overlaid on the map.</p>
-      <span class="feature-premium">⚡ Premium</span>
-    </div>
-    <div class="glass feature-card">
-      <span class="feature-icon">🔔</span>
-      <div class="feature-title">Push Alerts</div>
-      <p class="feature-desc">Get notified the moment your inbound plane pushes back from the gate — your leave-by time auto-adjusts in real time.</p>
-      <span class="feature-premium">⚡ Premium</span>
-    </div>
-    <div class="glass feature-card">
-      <span class="feature-icon">✈️</span>
-      <div class="feature-title">15 Major Airports</div>
-      <p class="feature-desc">Coverage across all major US airports with separate wait times for standard and PreCheck lanes at every terminal.</p>
+<!-- ══ HOME VIEW ═════════════════════════════════════════════════ -->
+<div class="app-view active" id="view-home">
+  <div class="splash-wrap">
+    <img src="/logo.svg" class="splash-logo" alt="APTSA"/>
+    <p class="splash-tagline">Real-time TSA waits, AI delay detection,<br>and a smart departure calculator so you never miss a flight.</p>
+    <div class="mode-buttons">
+      <button class="mode-btn departure-btn" onclick="pickMode('departure')">
+        <span class="mode-btn-icon">🎯</span>
+        <span class="mode-btn-label">When to Leave?</span>
+        <span class="mode-btn-desc">Gate Zero™ departure calculator + TSA intelligence for your flight</span>
+      </button>
+      <button class="mode-btn tracker-btn" onclick="pickMode('tracker')">
+        <span class="mode-btn-icon">✈️</span>
+        <span class="mode-btn-label">Live Flight Tracker</span>
+        <span class="mode-btn-desc">Real-time air traffic map and live flight departure board</span>
+      </button>
     </div>
   </div>
-
-  <footer>
-    <p>© 2025 APTSA. All rights reserved.</p>
-    <div class="footer-links">
-      <a href="#" class="footer-link">Privacy</a>
-      <a href="#" class="footer-link">Terms</a>
-      <a href="#" class="footer-link">API</a>
-      <a href="#" class="footer-link">Support</a>
-    </div>
-  </footer>
-
 </div>
 
-<!-- Premium Modal -->
+<!-- ══ LOCATION VIEW ══════════════════════════════════════════════ -->
+<div class="app-view" id="view-location">
+  <div class="loc-wrap">
+    <div class="loc-icon">📍</div>
+    <h2 class="loc-title">Allow Location Access</h2>
+    <p class="loc-sub">APTSA uses your location to find your nearest airport and auto-calculate your exact drive time — no account needed.</p>
+    <div id="locStatus" style="font-size:13px;color:var(--muted);margin-bottom:12px;min-height:18px;"></div>
+    <div class="loc-buttons">
+      <button class="mode-allow-btn" id="locAllowBtn" onclick="locationViewAllow()">📍 Use My Location</button>
+      <button class="mode-skip-btn" onclick="locationViewSkip()">Skip — I'll enter manually</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DEPARTURE VIEW ══════════════════════════════════════════════ -->
+<div class="app-view" id="view-departure">
+
+  <!-- Topbar -->
+  <div class="view-topbar">
+    <div class="view-topbar-inner">
+      <button class="back-btn" onclick="showView('home')">← Home</button>
+      <img src="/logo.svg" class="topbar-logo" alt="APTSA"/>
+      <div class="topbar-spacer"></div>
+      <select id="airportSelect" onchange="onDepartureAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
+      <span class="location-badge" id="locationBadge">📍 <span id="locationLabel"></span></span>
+      <div class="topbar-flight-wrap">
+        <div class="flight-wrap" style="min-width:140px;">
+          <span class="flight-icon">✈</span>
+          <input type="text" id="flightInput" placeholder="AA123, UA456…"
+                 maxlength="8"
+                 oninput="this.value=this.value.toUpperCase()"
+                 onkeydown="if(event.key==='Enter')lookupFlight()" />
+        </div>
+        <button class="analyze-btn" id="lookupBtn" onclick="lookupFlight()">Analyze</button>
+      </div>
+      <button class="btn-premium" onclick="showPremiumModal()">⚡ Premium</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="container">
+
+    <!-- Departure header row -->
+    <div class="dep-header-row">
+      <button class="location-btn" id="locationBtn" onclick="detectNearestAirport()">📍 My Location</button>
+      <div style="flex:1;min-width:0;"></div>
+      <span class="last-updated" id="lastUpdated"></span>
+      <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
+      <span class="live-pill" id="liveIndicator">Live</span>
+    </div>
+
+    <!-- TSA Intelligence -->
+    <section class="wait-section">
+      <div class="section-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="section-label">TSA Intelligence —&nbsp;
+            <span class="iata-badge" id="airportBadge">
+              <span id="airportBadgeCode">ATL</span>
+              <div class="iata-tooltip">
+                <div class="tooltip-name" id="tooltipName">Loading…</div>
+                <div class="tooltip-detail" id="tooltipDetail"></div>
+              </div>
+            </span>
+          </span>
+          <span class="departures-badge" id="departuresBadge">—</span>
+        </div>
+      </div>
+      <div class="delay-alerts" id="delayAlerts"></div>
+      <div class="terminals-grid" id="terminalsGrid">
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+      </div>
+    </section>
+
+    <!-- Gate Zero™ -->
+    <section class="gate-zero" id="gate-zero">
+      <div class="section-header">
+        <span class="section-label">Departure Intelligence</span>
+        <span class="premium-pill" onclick="showPremiumModal()">⚡ Unlock AI Delay Alerts</span>
+      </div>
+      <div class="glass gate-zero-card">
+        <div class="gz-title">Gate Zero™ <span>Departure Calculator</span></div>
+        <p class="gz-sub">Enter your flight and we calculate precisely when to leave — using predicted wait times at your arrival, not just what it is right now.</p>
+
+        <div class="gz-fields">
+          <div class="field-group">
+            <label class="field-label" for="flightTime">Flight Departure</label>
+            <select id="flightTime" onchange="calculate()">
+              <option value="">Select time…</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Drive Time (min)</label>
+            <div class="drive-row">
+              <input type="number" id="driveTime" value="30" min="0" max="300" oninput="calculate()" placeholder="min" />
+              <button class="btn-locate" id="driveLocateBtn" onclick="calcDriveTime()" title="Auto-calculate from my location">📍</button>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="checkpointSelect">TSA Checkpoint</label>
+            <select id="checkpointSelect" onchange="calculate()">
+              <option value="">Select checkpoint…</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="bufferTime">Safety Buffer (min)</label>
+            <select id="bufferTime" onchange="calculate()">
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15" selected>15 min</option>
+              <option value="20">20 min</option>
+              <option value="25">25 min</option>
+              <option value="30">30 min</option>
+              <option value="35">35 min</option>
+              <option value="40">40 min</option>
+              <option value="45">45 min</option>
+              <option value="60">60 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Connecting legs -->
+        <div class="legs-panel" id="legsPanel">
+          <div class="legs-title">✈ Flight Legs</div>
+          <div id="legsList"></div>
+        </div>
+
+        <!-- AI delay panel -->
+        <div class="ai-panel" id="aiPanel">
+          <div class="ai-panel-head">
+            <span style="font-size:15px;">🤖</span>
+            <span class="ai-panel-title">AI Delay Detection</span>
+            <span class="ai-badge">Live</span>
+          </div>
+          <div class="ai-loading" id="aiLoading" style="display:none;">
+            <div class="spinner"></div>
+            <span>Tracking inbound aircraft…</span>
+          </div>
+          <div id="aiData" style="display:none;">
+            <div class="ai-grid" id="aiGrid"></div>
+            <div class="delay-risk" id="delayRisk"></div>
+            <p class="ai-note" id="aiNote"></p>
+          </div>
+        </div>
+
+        <p class="no-flight-msg" id="noFlightMsg">Enter your departure time above to calculate when to leave.</p>
+
+        <!-- Open leave time modal button (shown after calculate()) -->
+        <button class="mode-allow-btn" id="showLeaveBtn"
+                style="display:none;margin-top:14px;width:auto;padding:14px 28px;border-radius:14px;font-size:15px;"
+                onclick="openLeaveModal()">🕐 View Leave Time →</button>
+      </div>
+    </section>
+
+    <!-- Inbound Tracker -->
+    <section class="inbound-section" id="inboundSection" style="display:none; margin-bottom:28px;">
+      <div class="section-header">
+        <span class="section-label">Inbound Aircraft Status</span>
+        <span class="live-pill">Tracking</span>
+      </div>
+      <div class="glass inbound-card" id="inboundCard"></div>
+    </section>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="glass feature-card">
+        <span class="feature-icon">⚡</span>
+        <div class="feature-title">Always Current</div>
+        <p class="feature-desc">Wait times refresh every 60 seconds from live travelers blended with official TSA data for maximum accuracy.</p>
+      </div>
+      <div class="glass feature-card">
+        <span class="feature-icon">🤖</span>
+        <div class="feature-title">AI Delay Detection</div>
+        <p class="feature-desc">Track your inbound aircraft in real time. If your plane hasn't left its origin airport, we predict the delay before the airline announces it.</p>
+        <span class="feature-premium">⚡ Premium</span>
+      </div>
+      <div class="glass feature-card">
+        <span class="feature-icon">🎯</span>
+        <div class="feature-title">Gate Zero™</div>
+        <p class="feature-desc">Calculates exactly when to leave using predicted wait at your arrival time — not the current wait that may change before you get there.</p>
+      </div>
+      <div class="glass feature-card">
+        <span class="feature-icon">🗺️</span>
+        <div class="feature-title">Live Air Traffic</div>
+        <p class="feature-desc">See every aircraft around your airport with real-time position, altitude, speed, and delay status overlaid on the map.</p>
+        <span class="feature-premium">⚡ Premium</span>
+      </div>
+      <div class="glass feature-card">
+        <span class="feature-icon">🔔</span>
+        <div class="feature-title">Push Alerts</div>
+        <p class="feature-desc">Get notified the moment your inbound plane pushes back from the gate — your leave-by time auto-adjusts in real time.</p>
+        <span class="feature-premium">⚡ Premium</span>
+      </div>
+      <div class="glass feature-card">
+        <span class="feature-icon">✈️</span>
+        <div class="feature-title">15 Major Airports</div>
+        <p class="feature-desc">Coverage across all major US airports with separate wait times for standard and PreCheck lanes at every terminal.</p>
+      </div>
+    </div>
+
+    <footer>
+      <p>© 2025 APTSA. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="#" class="footer-link">Privacy</a>
+        <a href="#" class="footer-link">Terms</a>
+        <a href="#" class="footer-link">API</a>
+        <a href="#" class="footer-link">Support</a>
+      </div>
+    </footer>
+
+  </div><!-- /container -->
+</div><!-- /view-departure -->
+
+<!-- ══ TRACKER VIEW ════════════════════════════════════════════════ -->
+<div class="app-view" id="view-tracker">
+
+  <!-- Topbar -->
+  <div class="view-topbar">
+    <div class="view-topbar-inner">
+      <button class="back-btn" onclick="showView('home')">← Home</button>
+      <img src="/logo.svg" class="topbar-logo" alt="APTSA"/>
+      <div class="topbar-spacer"></div>
+      <select id="trackerAirportSelect" onchange="onTrackerAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
+      <span class="live-pill" id="trafficCount" style="min-width:90px;">Loading…</span>
+      <button class="btn-ghost" id="trafficToggleBtn" onclick="toggleLiveTraffic()" style="font-size:11px;">⏹ Hide Traffic</button>
+      <button class="btn-premium" onclick="showPremiumModal()">⚡ Premium</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="container">
+
+    <!-- Tabs -->
+    <div class="tracker-tabs">
+      <button class="tracker-tab active" id="trackerTabMap" onclick="switchTrackerTab('map')">🗺 Live Map</button>
+      <button class="tracker-tab" id="trackerTabBoard" onclick="switchTrackerTab('board')">✈ Flight Board</button>
+    </div>
+
+    <!-- Map tab -->
+    <div id="trackerMapSection">
+
+      <!-- Airline filter -->
+      <div class="airline-filter-bar" id="airlineFilterBar">
+        <span class="af-label">Filter Airline</span>
+        <div class="af-select-wrap">
+          <select id="airlineFilterSelect" onchange="onAirlineFilter(this.value)">
+            <option value="ALL">All Airlines</option>
+          </select>
+        </div>
+        <span class="af-hint" id="afHint"></span>
+      </div>
+
+      <!-- Map + side panel container -->
+      <div class="map-container" id="mapContainer">
+        <div class="plane-panel glass" id="planePanel">
+          <button class="panel-close-btn" onclick="closePlanePanel()" title="Close">✕</button>
+          <div id="planePanelContent"></div>
+          <div id="panelMiniMap">
+            <div class="panel-minimap-label">Route</div>
+            <div id="panelMiniMapCanvas"></div>
+          </div>
+        </div>
+        <div class="map-wrap" id="mapWrap">
+          <div id="airport-map"></div>
+          <div id="mapLockOverlay" onclick="showPremiumModal()">
+            <div class="lock-icon">🔒</div>
+            <div class="lock-title">Live Radar Locked</div>
+            <div class="lock-sub">Enter your access code to view real-time flight tracking</div>
+            <button class="lock-btn">Unlock Premium</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Airline legend -->
+      <div class="airline-legend" id="airlineLegend"></div>
+
+      <!-- Multi-airport picker -->
+      <div class="airport-route-picker" id="airportRoutePicker">
+        <span class="arp-label">Route to Airport</span>
+        <div id="arpButtons" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Route strip -->
+      <div class="route-strip" id="routeStrip">
+        <div class="route-stat">
+          <div class="route-stat-label">Drive Time</div>
+          <div class="route-stat-value" id="routeDrive">—</div>
+        </div>
+        <div class="route-divider"></div>
+        <div class="route-stat">
+          <div class="route-stat-label">Distance</div>
+          <div class="route-stat-value" id="routeDist">—</div>
+        </div>
+        <div class="route-divider"></div>
+        <div class="route-summary" id="routeSummary"></div>
+        <span class="route-autofill-note">✓ Drive time auto-filled in calculator</span>
+        <button class="apple-maps-btn" id="appleMapsBtn" onclick="openAppleMaps()">🗺 Open in Apple Maps</button>
+      </div>
+    </div><!-- /trackerMapSection -->
+
+    <!-- Board tab -->
+    <div id="trackerBoardSection" style="display:none;">
+      <div class="section-header" style="margin:12px 0 8px;">
+        <span class="section-label">Live Flight Board — <span id="boardAirportLabel">ATL</span></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="board-mock-badge" id="boardMockBadge" style="display:none;">Demo Data</span>
+          <button class="board-tab active" id="tabDep" onclick="switchTab('dep')">Departures</button>
+          <button class="board-tab" id="tabArr" onclick="switchTab('arr')">Arrivals</button>
+        </div>
+      </div>
+      <div class="glass board-wrap">
+        <div id="boardLoading" class="board-loading">
+          <div class="spinner" style="width:18px;height:18px;border-color:rgba(255,255,255,.1);border-top-color:var(--accent);"></div>
+          <span>Loading flight board…</span>
+        </div>
+        <div id="boardTable" style="display:none;">
+          <div class="board-header-row">
+            <span class="bh flight">Flight</span>
+            <span class="bh airline">Airline</span>
+            <span class="bh city" id="boardCityHeader">Destination</span>
+            <span class="bh time">Time</span>
+            <span class="bh gate">Gate</span>
+            <span class="bh status">Status</span>
+          </div>
+          <div id="boardRows"></div>
+        </div>
+        <div id="boardEmpty" class="board-empty" style="display:none;">No flights found for this airport.</div>
+      </div>
+    </div><!-- /trackerBoardSection -->
+
+  </div><!-- /container -->
+</div><!-- /view-tracker -->
+
+<!-- ══ LEAVE TIME MODAL ════════════════════════════════════════════ -->
+<div class="leave-modal-overlay" id="leaveModal" onclick="closeLeaveModal(event)">
+  <div class="leave-modal-card">
+    <div class="leave-modal-handle"></div>
+    <button class="leave-modal-close" onclick="closeLeaveModalBtn()">✕</button>
+    <div class="leave-modal-title">Your Departure Plan</div>
+
+    <div class="calc-result" id="calcResult">
+      <div class="result-row">
+        <div>
+          <div class="result-lbl">Leave By</div>
+          <div class="result-time" id="resultTime">—</div>
+        </div>
+        <div style="flex:1;">
+          <div class="result-pills" id="resultPills"></div>
+          <p class="result-note" id="resultNote"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="uber-cta" id="uberCta" onclick="openUber()">
+      <span class="uber-logo">🚗</span>
+      <div class="uber-text">
+        <div class="uber-hl">Book a ride — leave at <span id="uberLeaveTime">the right time</span></div>
+        <div class="uber-sub">Zero wasted time — arrive right when you need to, not an hour early.</div>
+      </div>
+      <span class="uber-code">APTSA</span>
+      <button class="uber-btn" onclick="event.stopPropagation();openUber()">Book Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PREMIUM MODAL ═══════════════════════════════════════════════ -->
 <div class="modal-overlay" id="premiumModal" onclick="closePremiumModalOutside(event)">
   <div class="modal-card" id="premiumModalCard">
     <button class="modal-close" onclick="hidePremiumModal()">✕</button>
@@ -1341,6 +1363,25 @@ function fmt12(date) {
   const ap = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${h}:${m} ${ap}`;
+
+// fmt12InTZ — display an ISO UTC timestamp in a specific IANA timezone.
+// Falls back to browser-local fmt12 if timezone is unknown.
+// This prevents the 1-hour error caused by showing ATL departure times in
+// the user's browser timezone (e.g. DFW Central) instead of ATL Eastern.
+}
+function fmt12InTZ(isoString, timezone) {
+  if (!isoString) return '\u2014';
+  try {
+    if (timezone) {
+      return new Date(isoString).toLocaleTimeString('en-US', {
+        hour:     'numeric',
+        minute:   '2-digit',
+        hour12:   true,
+        timeZone: timezone,
+      });
+    }
+  } catch (e) { /* fall through */ }
+  return fmt12(new Date(isoString));
 }
 function minsUntil(d) { return Math.round((d - Date.now()) / 60000); }
 function esc(s) {
@@ -1910,20 +1951,49 @@ function renderLegs(data) {
   const list  = document.getElementById('legsList');
   const iata  = document.getElementById('airportSelect').value;
 
-  if (!data.origin || data.origin.iata === iata) {
+  if (!data.origin || !data.destination) {
     panel.classList.remove('visible');
     return;
   }
 
-  const legs = [
-    { label: data.flightNumber + ' (Inbound)',     from: data.origin.iata, to: iata, status: data.status },
-    { label: data.flightNumber + ' (Your flight)', from: iata, to: (data.destination && data.destination.iata) || '?', status: 'scheduled' },
-  ];
-  list.innerHTML = legs.map(function(l) {
-    const rc = l.status === 'active' ? 'color-safe' : l.status === 'cancelled' ? 'color-critical' : 'color-muted';
-    return '<div class="leg"><span class="leg-num">' + esc(l.label) + '</span><span class="leg-route">' + esc(l.from) + ' \u2192 ' + esc(l.to) + '</span><span class="leg-status ' + rc + '">' + capitalize(l.status) + '</span></div>';
-  }).join('');
+  const originIata = data.origin.iata;
+  const destIata   = data.destination.iata;
+  const status     = data.status || 'scheduled';
+
+  // Determine the actual leg label based on relationship to user's airport
+  let legLabel = data.flightNumber;
+  let warningHtml = '';
+
+  if (originIata === iata) {
+    legLabel += ' (Your flight)';
+  } else if (destIata === iata) {
+    legLabel += ' (Arriving at your airport)';
+  } else {
+    // Flight does not serve the user's selected airport at all
+    legLabel += ' (Actual route)';
+    warningHtml =
+      '<div style="margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.08);' +
+      'border:1px solid rgba(251,191,36,0.3);border-radius:8px;font-size:11px;color:var(--soon);">' +
+      '⚠ Flight ' + esc(data.flightNumber) + ' does not serve ' + esc(iata) +
+      '. Verify your flight number and departure airport.' +
+      '</div>';
+  }
+
   panel.classList.add('visible');
+
+  const rc = status === 'active' ? 'color-safe' : status === 'cancelled' ? 'color-critical' : 'color-muted';
+  const verifiedBadge = data.validated
+    ? '<span style="font-size:10px;background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);color:var(--accent);padding:1px 6px;border-radius:5px;margin-left:6px;">✓ Verified</span>'
+    : '<span style="font-size:10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:var(--soon);padding:1px 6px;border-radius:5px;margin-left:6px;">Demo</span>';
+
+  list.innerHTML =
+    '<div class="leg">' +
+      '<span class="leg-num">' + esc(legLabel) + verifiedBadge + '</span>' +
+      '<span class="leg-route">' + esc(originIata) + ' \u2192 ' + esc(destIata) + '</span>' +
+      '<span class="leg-status ' + rc + '">' + capitalize(status) + '</span>' +
+    '</div>' +
+    warningHtml;
+
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2781,17 +2851,7 @@ function tickFleet() {
     }
   });
 
-  // Respawn simulated aircraft only in pure fallback mode (never had live data)
-  if (!liveApiMode && !_hasEverSeenLive) {
-    var density = trafficDensity();
-    var target  = Math.round(ALL_ROUTES.length * density * 1.8);
-    var deficit = target - simFleet.length;
-    for (var i = 0; i < Math.min(deficit, 6); i++) {
-      var r  = ALL_ROUTES[Math.floor(Math.random() * ALL_ROUTES.length)];
-      var ac = spawnAircraft(r, Math.random() * 0.04);
-      if (ac) simFleet.push(ac);
-    }
-  }
+  // No simulation respawn — only real OpenSky/ADS-B Exchange aircraft are shown.
 }
 
 // ── Merge live API data into simFleet ─────────────────────────
@@ -2872,19 +2932,17 @@ function fetchLiveTraffic(iata) {
     })
     .catch(function(reason) {
       if (reason === 'rate_limited') {
-        // OpenSky quota exhausted — keep showing whatever real aircraft we have.
-        // Never inject simulation when rate limited; show a clear message.
         _setLiveBadge('rate_limited', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata);
         return;
       }
-      // True network/server failure — fall back to simulation only if we have
-      // never seen real data AND it's a complete outage (not just rate limit).
-      if (!_hasEverSeenLive) {
-        simFleet = buildFleet();
-        liveApiMode = false;
-        _setLiveBadge(false, 0, iata);
+      // Network/server failure — keep any real aircraft already dead-reckoning.
+      // NEVER inject simulation: fake aircraft mislead users.
+      if (_hasEverSeenLive) {
+        _setLiveBadge('stale', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata);
       } else {
-        _setLiveBadge('stale', simFleet.length, iata);
+        simFleet = [];   // ensure map is empty — no fake data
+        liveApiMode = false;
+        _setLiveBadge('unavailable', 0, iata);
       }
     });
 }
@@ -2909,8 +2967,11 @@ function _setLiveBadge(state, count, iata) {
       ? '⚠ Rate limited — showing ' + count + ' cached aircraft'
       : '⚠ OpenSky rate limit reached — try again later';
     el.style.color = '#f59e0b';
+  } else if (state === 'unavailable') {
+    el.textContent = '○ Live data unavailable — configure ADSBX_API_KEY or OPENSKY credentials';
+    el.style.color = 'var(--muted)';
   } else {
-    el.textContent = '○ DEMO MODE — live data unavailable';
+    el.textContent = '○ Connecting to live traffic…';
     el.style.color = 'var(--muted)';
   }
 }
@@ -3696,7 +3757,9 @@ function renderInboundTracker(data) {
     state = 'ground'; emoji = '🕐';
     const origin = data.origin && data.origin.city ? data.origin.city.split(',')[0] : (data.origin && data.origin.iata) || 'origin';
     headline = 'Plane is at ' + esc(origin);
-    const schTime = dep.scheduled ? fmt12(new Date(dep.scheduled)) : '';
+    // Use origin's IANA timezone so e.g. ATL times show Eastern, not user's browser tz
+    const originTZ = data.origin && data.origin.timezone;
+    const schTime  = dep.scheduled ? fmt12InTZ(dep.scheduled, originTZ) : '';
     sub = 'Scheduled departure' + (schTime ? ' at ' + schTime : '') + ' — not yet departed';
     const depDelay = dep.delay || 0;
     if (depDelay > 15) {
@@ -3733,10 +3796,12 @@ function renderInboundTracker(data) {
   // ── Stats ──────────────────────────────────────────────────
   var statsHtml = '';
   var statsItems = [];
+  const originTZStats = data.origin      && data.origin.timezone;
+  const destTZStats   = data.destination && data.destination.timezone;
   if (live && live.altitude > 0) statsItems.push({ label: 'Altitude', value: live.altitude.toLocaleString() + ' ft' });
   if (live && live.speed)        statsItems.push({ label: 'Speed',    value: Math.round(live.speed) + ' kts' });
-  if (dep.actual)                statsItems.push({ label: 'Departed', value: fmt12(new Date(dep.actual)) });
-  if (arr.scheduled)             statsItems.push({ label: 'ETA',      value: fmt12(new Date(arr.scheduled)) });
+  if (dep.actual)                statsItems.push({ label: 'Departed', value: fmt12InTZ(dep.actual,    originTZStats) });
+  if (arr.scheduled)             statsItems.push({ label: 'ETA',      value: fmt12InTZ(arr.scheduled, destTZStats) });
   if (dep.delay && dep.delay > 0) statsItems.push({ label: 'Delay',   value: dep.delay + ' min' });
   if (data.aircraft)             statsItems.push({ label: 'Aircraft', value: data.aircraft });
 
@@ -3790,7 +3855,10 @@ async function loadBoard(iata) {
     boardData = await res.json();
 
     var mockBadge = document.getElementById('boardMockBadge');
-    if (mockBadge) mockBadge.style.display = 'none'; // always hide; data always shown
+    if (mockBadge) {
+      mockBadge.style.display = (boardData && boardData.mock) ? '' : 'none';
+      mockBadge.textContent   = 'Estimated Data';
+    }
   } catch (e) {
     boardData = null;
   }
@@ -3846,6 +3914,18 @@ function renderBoardRows() {
 
   rows.innerHTML = flights.map(function(f) {
     var isHighlight = highlightFlt && f.flightIata && f.flightIata.toUpperCase() === highlightFlt.toUpperCase();
+
+    // When board data is simulated and we have a validated flight, suppress highlight
+    // if the simulated row's route conflicts with the real flight data.
+    // (e.g. board shows DL2276→CUN but real DL2276 is ATL→JAX — do NOT highlight)
+    if (isHighlight && boardData && boardData.mock && currentFlight) {
+      var trackedDest = currentFlight.destination && currentFlight.destination.iata;
+      var boardCity   = currentTab === 'dep' ? f.cityIata : null;
+      if (trackedDest && boardCity && trackedDest.toUpperCase() !== boardCity.toUpperCase()) {
+        isHighlight = false;
+      }
+    }
+
     var stClass  = f.status in statusLabel ? f.status : 'scheduled';
     var stText   = statusLabel[stClass] || capitalize(f.status || 'Scheduled');
     var timeHtml = fmtBoardTime(f.estimated || f.scheduled, f.delay);
@@ -3868,27 +3948,168 @@ function renderBoardRows() {
 // ════════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+// VIEW NAVIGATION
+// ════════════════════════════════════════════════════════════════
+var pendingMode = 'departure';
+var _boardRefreshTimer = null;
+
+function showView(id) {
+  document.querySelectorAll('.app-view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-' + id).classList.add('active');
+  if (id === 'tracker' && !mapsReady) { loadGoogleMaps(); }
+  if (id === 'tracker' && !_boardRefreshTimer) {
+    var iata = document.getElementById('airportSelect').value || 'ATL';
+    loadBoard(iata);
+    _boardRefreshTimer = setInterval(function() {
+      var cur = document.getElementById('airportSelect').value || 'ATL';
+      loadBoard(cur);
+    }, 15 * 60 * 1000);
+  }
+  if (id === 'tracker' && mapsReady && gmap) {
+    setTimeout(function() { google.maps.event.trigger(gmap, 'resize'); }, 100);
+  }
+}
+
+function pickMode(mode) {
+  pendingMode = mode;
+  showView('location');
+}
+
+function locationViewAllow() {
+  if (!navigator.geolocation) { proceedAfterLocation(); return; }
+  var btn    = document.getElementById('locAllowBtn');
+  var status = document.getElementById('locStatus');
+  btn.disabled    = true;
+  btn.textContent = '📍 Locating…';
+  if (status) status.textContent = 'Detecting your location…';
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      var nearby       = nearbyRouteAirports(userLocation.lat, userLocation.lng);
+      var metro        = checkMetroGroup(nearby);
+      var metroAirports = metro ? nearby.filter(function(a) {
+        return metro.airports.indexOf(a.iata) !== -1;
+      }) : [];
+      var airport = nearestAirport(userLocation.lat, userLocation.lng);
+
+      document.getElementById('airportSelect').value = airport.iata;
+      var ts = document.getElementById('trackerAirportSelect');
+      if (ts) ts.value = airport.iata;
+      document.getElementById('locationLabel').textContent = airport.city.split(',')[0] + ' (' + airport.iata + ')';
+      document.getElementById('locationBadge').classList.add('visible');
+      document.getElementById('locationBtn').style.display = 'none';
+      onAirportChange();
+
+      if (metro && metroAirports.length > 1) {
+        _routeAirportList   = metroAirports;
+        _routeTargetAirport = metroAirports[0];
+        showAirportRoutePicker(metroAirports);
+      } else {
+        _routeTargetAirport = airport;
+        document.getElementById('airportRoutePicker').classList.remove('visible');
+      }
+      proceedAfterLocation();
+    },
+    function() {
+      var btn2 = document.getElementById('locAllowBtn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '📍 Use My Location'; }
+      proceedAfterLocation();
+    },
+    { timeout: 8000, maximumAge: 300000 }
+  );
+}
+
+function locationViewSkip() { proceedAfterLocation(); }
+
+function proceedAfterLocation() { showView(pendingMode); }
+
+function populateTrackerAirports() {
+  var sel = document.getElementById('trackerAirportSelect');
+  if (!sel) return;
+  sel.innerHTML = AIRPORTS.map(function(a) {
+    return '<option value="' + a.iata + '">' + a.city.split(',')[0] + ' (' + a.iata + ')</option>';
+  }).join('');
+}
+
+function onDepartureAirportChange() {
+  var iata = document.getElementById('airportSelect').value;
+  var ts   = document.getElementById('trackerAirportSelect');
+  if (ts) ts.value = iata;
+  onAirportChange();
+}
+
+function onTrackerAirportChange() {
+  var iata = document.getElementById('trackerAirportSelect').value;
+  document.getElementById('airportSelect').value = iata;
+  onAirportChange();
+}
+
+function switchTrackerTab(tab) {
+  document.getElementById('trackerMapSection').style.display   = tab === 'map'   ? 'block' : 'none';
+  document.getElementById('trackerBoardSection').style.display = tab === 'board' ? 'block' : 'none';
+  document.querySelectorAll('.tracker-tab').forEach(function(btn) { btn.classList.remove('active'); });
+  var activeBtn = tab === 'map'
+    ? document.getElementById('trackerTabMap')
+    : document.getElementById('trackerTabBoard');
+  if (activeBtn) activeBtn.classList.add('active');
+  if (tab === 'map' && mapsReady && gmap) {
+    setTimeout(function() { google.maps.event.trigger(gmap, 'resize'); }, 100);
+  }
+}
+
+function openLeaveModal() {
+  document.getElementById('leaveModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLeaveModal(e) {
+  if (e && e.target !== document.getElementById('leaveModal')) return;
+  document.getElementById('leaveModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeLeaveModalBtn() {
+  document.getElementById('leaveModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Override calculate() to reveal the "View Leave Time" button + auto-open modal
+(function() {
+  var _orig = calculate;
+  calculate = function() {
+    _orig();
+    var ft      = document.getElementById('flightTime').value;
+    var showBtn = document.getElementById('showLeaveBtn');
+    if (showBtn) showBtn.style.display = ft ? 'inline-block' : 'none';
+    if (ft) {
+      var depView = document.getElementById('view-departure');
+      if (depView && depView.classList.contains('active')) {
+        openLeaveModal();
+      }
+    }
+  };
+})();
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
 populateAirports();
+populateTrackerAirports();
 populateFlightTimes();
 
-// Apply map lock on page load (isPremium is always false at startup — no persistence)
 document.getElementById('mapWrap').classList.add('map-locked');
 
 if (isPremium) {
-  // Restore premium UI state silently on reload
   var _btn = document.querySelector('.btn-premium');
   if (_btn) { _btn.textContent = '⚡ Premium Active'; _btn.classList.add('active'); _btn.onclick = null; }
   document.querySelectorAll('.premium-pill').forEach(function(el) { el.style.display = 'none'; });
   document.querySelectorAll('.feature-premium').forEach(function(el) { el.innerHTML = '<span style="color:var(--safe);">✓ Included</span>'; });
 }
+
 loadTerminals();
-loadGoogleMaps();
-loadBoard(document.getElementById('airportSelect').value || 'ATL');
-// Auto-refresh the board every 15 min to keep departure times current
-setInterval(function() {
-  var iata = document.getElementById('airportSelect').value || 'ATL';
-  loadBoard(iata);
-}, 15 * 60 * 1_000);
+showView('home');
 </script>
 </body>
 </html>

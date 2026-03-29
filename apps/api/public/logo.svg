@@ -1,83 +1,121 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 96" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 0 410 133" fill="none" role="img" aria-label="APTSA — Airport Time Saving App">
   <defs>
 
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@800&display=swap');
     </style>
 
     <!--
-      Contrail gradient: x1=10 (left edge of A1) → x2=272 (plane tail).
-      A1 crossbar ~x=12–38 (0–10%), A2 crossbar ~x=200–228 (72–83%).
-      P / T / S region stays dim so the A's flare bright.
+      ═══════════════════════════════════════════════════════════════
+      CONTRAIL PATH — smooth 2-segment bezier matching reference
+      ═══════════════════════════════════════════════════════════════
+
+        Seg 1  M 12,44 → C -40,55  -10,120  70,122
+               CP1(−40,55): initial tangent (−52,11) → 12° below horizontal ✓
+               Leftward drift: min-x ≈ −14 at t≈0.34 ✓
+               Nadir (70,122) — under "P", 52 px below baseline.
+
+        Seg 2  S 242,45  295,36   (smooth-cubic auto-reflects CP1=(150,124))
+               Junction tangent: (80,2) ≈ horizontal ✓ (C¹ guaranteed)
+               Long gradual rise — crosses y=70 outside text. ✓
+               End tangent: (295−242, 36−45)=(53,−9) → −10° ✓ matches plane
+
+      ═══════════════════════════════════════════════════════════════
+      MASK — prevents glow bleed into letter-gaps
+      ═══════════════════════════════════════════════════════════════
+        Black rect hides contrail+glow in text bounding box.
+        Gradient fade (x=230→275) creates smooth emergence on right.
+        The leftward swing (x<−2) remains fully visible — near-zero
+        gradient opacity (~3%) means it fades in naturally.
+
+      ═══════════════════════════════════════════════════════════════
+      PLANE  translate(335,29) rotate(−10) scale(0.9) translate(−50,−50)
+             Tail (5,50) local → (295.1, 36.0) ≡ contrail end ✓
+             Heading −10° matches contrail end tangent ✓
+      ═══════════════════════════════════════════════════════════════
     -->
-    <linearGradient id="cg1" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="1.00"/>
-      <stop offset="10%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-      <stop offset="18%"  stop-color="#22d3ee" stop-opacity="0.20"/>
-      <stop offset="58%"  stop-color="#22d3ee" stop-opacity="0.14"/>
-      <stop offset="70%"  stop-color="#22d3ee" stop-opacity="0.22"/>
-      <stop offset="83%"  stop-color="#22d3ee" stop-opacity="1.00"/>
-      <stop offset="92%"  stop-color="#22d3ee" stop-opacity="0.60"/>
-      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.05"/>
+
+    <!-- Mask gradient: fade contrail in from x=235 to x=285 -->
+    <linearGradient id="maskFade" x1="230" y1="0" x2="275" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="black"/>
+      <stop offset="100%" stop-color="white"/>
     </linearGradient>
 
-    <linearGradient id="cg2" x1="10" y1="44" x2="272" y2="44" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.28"/>
-      <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.28"/>
-      <stop offset="55%"  stop-color="#22d3ee" stop-opacity="0.05"/>
-      <stop offset="75%"  stop-color="#22d3ee" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.00"/>
+    <!-- Mask: hide contrail glow within text bounding box -->
+    <mask id="noTextGlow">
+      <rect x="-30" y="0" width="470" height="133" fill="white"/>
+      <!-- Solid hide: x=−2→235, y=6→85 (text body + glow margin) -->
+      <rect x="-2" y="6" width="232" height="79" fill="black"/>
+      <!-- Gradient fade-in: x=230→275 -->
+      <rect x="230" y="6" width="45"  height="79" fill="url(#maskFade)"/>
+    </mask>
+
+    <!-- Core bright spine -->
+    <linearGradient id="cg1" x1="-15" y1="0" x2="295" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.00"/>
+      <stop offset="5%"   stop-color="#22d3ee" stop-opacity="0.06"/>
+      <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="40%"  stop-color="#22d3ee" stop-opacity="0.60"/>
+      <stop offset="72%"  stop-color="#22d3ee" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="1.00"/>
     </linearGradient>
 
-    <filter id="glow" x="-5%" y="-400%" width="110%" height="900%">
-      <feGaussianBlur stdDeviation="1.2" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <!-- Soft luminous halo -->
+    <linearGradient id="cg2" x1="-15" y1="0" x2="295" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.00"/>
+      <stop offset="10%"  stop-color="#22d3ee" stop-opacity="0.05"/>
+      <stop offset="50%"  stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.36"/>
+    </linearGradient>
+
+    <!-- Ultra-diffuse outer bloom -->
+    <linearGradient id="cg3" x1="-15" y1="0" x2="295" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.00"/>
+      <stop offset="40%"  stop-color="#22d3ee" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.09"/>
+    </linearGradient>
+
+    <!-- Filter bb: x≈−14–330 (w≈344), y≈36–122 (h≈86). margin=15px.
+         x:15/344=4.4% → −5%/110%   y:15/86=17.4% → −18%/136% -->
+    <filter id="glow" x="-5%" y="-18%" width="110%" height="136%">
+      <feGaussianBlur stdDeviation="1.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
 
   </defs>
 
 
-  <!-- ══ APTSA — Orbitron Bold, futuristic tech font ══
-       font-size=68, baseline y=70 → cap tops ~y=22, crossbars ~y=44.
-       letter-spacing=6 spreads letters to ~248px total width.
+  <!--
+    CONTRAIL — behind text, masked out of letter-gap zones.
+    Smooth C¹ S-curve: leftward departure → wide arc under text → long rise to plane.
   -->
+  <g filter="url(#glow)" mask="url(#noTextGlow)">
+    <path d="M 12,44 C -40,55 -10,120 70,122 S 242,45 295,36"
+          stroke="url(#cg3)" stroke-width="20"
+          fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 12,44 C -40,55 -10,120 70,122 S 242,45 295,36"
+          stroke="url(#cg2)" stroke-width="10"
+          fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 12,44 C -40,55 -10,120 70,122 S 242,45 295,36"
+          stroke="url(#cg1)" stroke-width="2.4"
+          fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+
+  <!-- APTSA — above contrail; white letters cover origin overlap. -->
   <text x="0" y="70"
-        font-family="Orbitron, 'Courier New', monospace"
-        font-weight="700"
+        font-family="'Exo 2', 'Arial', sans-serif"
+        font-weight="800"
         font-size="68"
         letter-spacing="6"
         fill="white">APTSA</text>
 
 
-  <!-- ══ CONTRAIL ══
-       Flat straight line at y=44 through all letters.
-       Plane tail is at (272, 44) — right where A2's brightness fades.
-  -->
-  <g filter="url(#glow)">
-    <path d="M 10,44 L 272,44"
-          stroke="url(#cg1)" stroke-width="4.6"
-          fill="none" stroke-linecap="round"/>
-    <path d="M 10,45.4 L 272,45.4"
-          stroke="url(#cg2)" stroke-width="1.8"
-          fill="none" stroke-linecap="round"/>
-  </g>
-
-
-  <!--
-    ══ AIRPLANE — single closed path in 100×100 local space ══════
-    Tail at (272, 44), nose at ~(345, 11). Plane takes off right
-    at the end of the text where the contrail colour fades.
-
-    Transform chain (applied right-to-left by SVG):
-      translate(-50,-50)  — centre local origin on plane
-      scale(0.9)          — fit within viewBox
-      rotate(-25)         — tilt: nose up-right, tail down-left
-      translate(309,27)   — final SVG position
-
-    Verified tail  (5,50)  → (272, 44)
-    Verified nose (95,50)  → (345, 11)
-  -->
-  <path transform="translate(309,27) rotate(-25) scale(0.9) translate(-50,-50)"
+  <!-- AIRPLANE — ascending −10°. Tail (295.1, 36.0) ≡ contrail end. -->
+  <path transform="translate(335,29) rotate(-10) scale(0.9) translate(-50,-50)"
         fill="#22d3ee" d="
     M 95,50
     C 93,44  85,44  78,44

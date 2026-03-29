@@ -28,6 +28,14 @@ interface FaPosition {
   update_type: string;
 }
 
+interface FaAirport {
+  code:      string;
+  code_iata: string;
+  name:      string;
+  city:      string;
+  timezone?: string;   // IANA tz, e.g. "America/New_York" — used for local-time display
+}
+
 interface FaFlight {
   ident:         string;
   ident_iata:    string;
@@ -36,14 +44,16 @@ interface FaFlight {
   actual_out:    string | null;
   estimated_in:  string | null;
   actual_in:     string | null;
-  origin:      { code: string; code_iata: string; name: string; city: string };
-  destination: { code: string; code_iata: string; name: string; city: string };
+  origin:      FaAirport;
+  destination: FaAirport;
   last_position: FaPosition | null;
   aircraft_type: string | null;
   operator:      string | null;
   operator_iata: string | null;
   departure_delay: number | null;   // seconds
   arrival_delay:   number | null;   // seconds
+  gate_origin?:    string | null;
+  gate_destination?: string | null;
 }
 
 function faDelayRisk(f: FaFlight): DelayRisk {
@@ -96,25 +106,30 @@ async function queryFlightAware(flightIata: string, apiKey: string) {
     flightNumber: f.ident_iata || f.ident,
     status:       f.status,
     airline:      f.operator ?? f.operator_iata ?? 'Unknown',
+    validated:    true,
     origin: {
-      iata: f.origin.code_iata,
-      name: f.origin.name,
-      city: f.origin.city,
+      iata:     f.origin.code_iata,
+      name:     f.origin.name,
+      city:     f.origin.city,
+      timezone: f.origin.timezone ?? null,
     },
     destination: {
-      iata: f.destination.code_iata,
-      name: f.destination.name,
-      city: f.destination.city,
+      iata:     f.destination.code_iata,
+      name:     f.destination.name,
+      city:     f.destination.city,
+      timezone: f.destination.timezone ?? null,
     },
     departure: {
       scheduled: f.scheduled_out,
       actual:    f.actual_out,
       delay:     f.departure_delay != null ? Math.round(f.departure_delay / 60) : 0,
+      gate:      f.gate_origin ?? null,
     },
     arrival: {
       scheduled: f.estimated_in ?? null,
       actual:    f.actual_in,
       delay:     f.arrival_delay != null ? Math.round(f.arrival_delay / 60) : 0,
+      gate:      f.gate_destination ?? null,
     },
     live: pos ? {
       latitude:  pos.latitude,
@@ -136,8 +151,8 @@ async function queryFlightAware(flightIata: string, apiKey: string) {
 
 interface AviationStackFlight {
   flight_status: string;
-  departure: { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null };
-  arrival:   { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null };
+  departure: { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null; gate?: string | null; timezone?: string };
+  arrival:   { airport: string; iata: string; scheduled: string; estimated: string; actual: string | null; delay: number | null; gate?: string | null; timezone?: string };
   live:      { latitude: number; longitude: number; altitude: number; speed_horizontal: number; is_ground: boolean } | null;
   airline:   { name: string; iata: string };
   flight:    { iata: string; number: string };
@@ -179,25 +194,30 @@ async function queryAviationStack(flightIata: string, apiKey: string) {
     flightNumber: f.flight.iata,
     status:       f.flight_status,
     airline:      f.airline.name,
+    validated:    true,
     origin: {
-      iata: f.departure.iata,
-      name: f.departure.airport,
-      city: f.departure.airport,
+      iata:     f.departure.iata,
+      name:     f.departure.airport,
+      city:     f.departure.airport,
+      timezone: f.departure.timezone ?? null,
     },
     destination: {
-      iata: f.arrival.iata,
-      name: f.arrival.airport,
-      city: f.arrival.airport,
+      iata:     f.arrival.iata,
+      name:     f.arrival.airport,
+      city:     f.arrival.airport,
+      timezone: f.arrival.timezone ?? null,
     },
     departure: {
       scheduled: f.departure.scheduled,
       actual:    f.departure.actual,
       delay:     f.departure.delay ?? 0,
+      gate:      f.departure.gate ?? null,
     },
     arrival: {
       scheduled: f.arrival.scheduled,
       actual:    f.arrival.actual,
       delay:     f.arrival.delay ?? 0,
+      gate:      f.arrival.gate ?? null,
     },
     live: f.live ? {
       latitude:  f.live.latitude,
@@ -245,15 +265,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prefix = flightIata.replace(/\d/g, '').slice(0, 2);
     const origin = mockOrigins[prefix] ?? { iata: 'MIA', name: 'Miami International', city: 'Miami, FL' };
     return res.status(200).json({
-      mock: true,
-      source: 'demo',
+      mock:      true,
+      validated: false,
+      source:    'demo',
       flightNumber: flightIata,
       status: 'En Route / On Time',
       airline: `${prefix || 'Demo'} Airlines`,
-      origin,
-      destination: { iata: 'JFK', name: 'JFK International', city: 'New York, NY' },
-      departure: { scheduled: new Date(Date.now() - 3_600_000).toISOString(), actual: new Date(Date.now() - 3_540_000).toISOString(), delay: 0 },
-      arrival:   { scheduled: new Date(Date.now() + 3_600_000).toISOString(), actual: null, delay: 0 },
+      origin:      { ...origin, timezone: null },
+      destination: { iata: 'JFK', name: 'JFK International', city: 'New York, NY', timezone: 'America/New_York' },
+      departure: { scheduled: new Date(Date.now() - 3_600_000).toISOString(), actual: new Date(Date.now() - 3_540_000).toISOString(), delay: 0, gate: null },
+      arrival:   { scheduled: new Date(Date.now() + 3_600_000).toISOString(), actual: null, delay: 0, gate: null },
       live: { latitude: 28.6, longitude: -80.5, altitude: 35_000, speed: 510, heading: 45, isGround: false },
       aircraft: 'B738',
       delayRisk: { risk: 'low', reason: 'On schedule' },
