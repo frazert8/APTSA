@@ -820,7 +820,21 @@
 <!-- ══ HOME VIEW ═════════════════════════════════════════════════ -->
 <div class="app-view active" id="view-home">
   <div class="splash-wrap">
-    <img src="/logo.svg" class="splash-logo" alt="APTSA"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 0 435 133" class="splash-logo" role="img" aria-label="APTSA">
+      <defs>
+        <linearGradient id="sp-mf" x1="230" y1="0" x2="275" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="black"/><stop offset="100%" stop-color="white"/></linearGradient>
+        <mask id="sp-m"><rect x="-30" y="0" width="500" height="133" fill="white"/><rect x="-2" y="6" width="237" height="79" fill="black"/><rect x="235" y="6" width="50" height="79" fill="url(#sp-mf)"/></mask>
+        <linearGradient id="sp-g1" x1="-15" y1="0" x2="295" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0"/><stop offset="10%" stop-color="#22d3ee" stop-opacity=".18"/><stop offset="40%" stop-color="#22d3ee" stop-opacity=".6"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="1"/></linearGradient>
+        <linearGradient id="sp-g2" x1="-15" y1="0" x2="295" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0"/><stop offset="50%" stop-color="#22d3ee" stop-opacity=".18"/><stop offset="100%" stop-color="#22d3ee" stop-opacity=".36"/></linearGradient>
+        <filter id="sp-glow" x="-5%" y="-18%" width="110%" height="136%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g filter="url(#sp-glow)" mask="url(#sp-m)">
+        <path d="M 12,44 C -40,55 -10,120 70,122 S 242,53 295,44" stroke="url(#sp-g2)" stroke-width="10" fill="none" stroke-linecap="round"/>
+        <path d="M 12,44 C -40,55 -10,120 70,122 S 242,53 295,44" stroke="url(#sp-g1)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </g>
+      <text x="0" y="70" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="68" letter-spacing="6" fill="white">APTSA</text>
+      <path transform="translate(335,37) rotate(-10) scale(0.9) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+    </svg>
     <p class="splash-tagline">Real-time TSA waits, AI delay detection,<br>and a smart departure calculator so you never miss a flight.</p>
     <div class="mode-buttons">
       <button class="mode-btn departure-btn" onclick="pickMode('departure')">
@@ -837,19 +851,6 @@
   </div>
 </div>
 
-<!-- ══ LOCATION VIEW ══════════════════════════════════════════════ -->
-<div class="app-view" id="view-location">
-  <div class="loc-wrap">
-    <div class="loc-icon">📍</div>
-    <h2 class="loc-title">Allow Location Access</h2>
-    <p class="loc-sub">APTSA uses your location to find your nearest airport and auto-calculate your exact drive time — no account needed.</p>
-    <div id="locStatus" style="font-size:13px;color:var(--muted);margin-bottom:12px;min-height:18px;"></div>
-    <div class="loc-buttons">
-      <button class="mode-allow-btn" id="locAllowBtn" onclick="locationViewAllow()">📍 Use My Location</button>
-      <button class="mode-skip-btn" onclick="locationViewSkip()">Skip — I'll enter manually</button>
-    </div>
-  </div>
-</div>
 
 <!-- ══ DEPARTURE VIEW ══════════════════════════════════════════════ -->
 <div class="app-view" id="view-departure">
@@ -858,7 +859,10 @@
   <div class="view-topbar">
     <div class="view-topbar-inner">
       <button class="back-btn" onclick="showView('home')">← Home</button>
-      <img src="/logo.svg" class="topbar-logo" alt="APTSA"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" class="topbar-logo" role="img" aria-label="APTSA">
+      <text x="0" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
+      <path transform="translate(188,14) rotate(-10) scale(0.5) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+    </svg>
       <div class="topbar-spacer"></div>
       <select id="airportSelect" onchange="onDepartureAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
       <span class="location-badge" id="locationBadge">📍 <span id="locationLabel"></span></span>
@@ -887,30 +891,6 @@
       <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
       <span class="live-pill" id="liveIndicator">Live</span>
     </div>
-
-    <!-- TSA Intelligence -->
-    <section class="wait-section">
-      <div class="section-header">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span class="section-label">TSA Intelligence —&nbsp;
-            <span class="iata-badge" id="airportBadge">
-              <span id="airportBadgeCode">ATL</span>
-              <div class="iata-tooltip">
-                <div class="tooltip-name" id="tooltipName">Loading…</div>
-                <div class="tooltip-detail" id="tooltipDetail"></div>
-              </div>
-            </span>
-          </span>
-          <span class="departures-badge" id="departuresBadge">—</span>
-        </div>
-      </div>
-      <div class="delay-alerts" id="delayAlerts"></div>
-      <div class="terminals-grid" id="terminalsGrid">
-        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
-      </div>
-    </section>
 
     <!-- Gate Zero™ -->
     <section class="gate-zero" id="gate-zero">
@@ -992,6 +972,29 @@
                 onclick="openLeaveModal()">🕐 View Leave Time →</button>
       </div>
     </section>
+    <!-- TSA Intelligence -->
+    <section class="wait-section">
+      <div class="section-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="section-label">TSA Intelligence —&nbsp;
+            <span class="iata-badge" id="airportBadge">
+              <span id="airportBadgeCode">ATL</span>
+              <div class="iata-tooltip">
+                <div class="tooltip-name" id="tooltipName">Loading…</div>
+                <div class="tooltip-detail" id="tooltipDetail"></div>
+              </div>
+            </span>
+          </span>
+          <span class="departures-badge" id="departuresBadge">—</span>
+        </div>
+      </div>
+      <div class="delay-alerts" id="delayAlerts"></div>
+      <div class="terminals-grid" id="terminalsGrid">
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+        <div class="glass terminal-card"><div class="terminal-top"><div class="skeleton sk-txt"></div></div><div class="skeleton sk-num" style="margin-top:9px;"></div><div class="skeleton sk-txt-sm"></div></div>
+      </div>
+    </section>
 
     <!-- Inbound Tracker -->
     <section class="inbound-section" id="inboundSection" style="display:none; margin-bottom:28px;">
@@ -1059,7 +1062,10 @@
   <div class="view-topbar">
     <div class="view-topbar-inner">
       <button class="back-btn" onclick="showView('home')">← Home</button>
-      <img src="/logo.svg" class="topbar-logo" alt="APTSA"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" class="topbar-logo" role="img" aria-label="APTSA">
+      <text x="0" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
+      <path transform="translate(188,14) rotate(-10) scale(0.5) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+    </svg>
       <div class="topbar-spacer"></div>
       <select id="trackerAirportSelect" onchange="onTrackerAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
       <span class="live-pill" id="trafficCount" style="min-width:90px;">Loading…</span>
@@ -3973,23 +3979,23 @@ function showView(id) {
 }
 
 function pickMode(mode) {
-  pendingMode = mode;
-  showView('location');
+  showView(mode);
+  // Silently request location in the background — no intermediate screen.
+  // On success the airport select + drive time auto-fill; on denial the user
+  // can still enter manually. The location button shows feedback inline.
+  _autoDetectLocation();
 }
 
-function locationViewAllow() {
-  if (!navigator.geolocation) { proceedAfterLocation(); return; }
-  var btn    = document.getElementById('locAllowBtn');
-  var status = document.getElementById('locStatus');
-  btn.disabled    = true;
-  btn.textContent = '📍 Locating…';
-  if (status) status.textContent = 'Detecting your location…';
+function _autoDetectLocation() {
+  if (!navigator.geolocation) return;
+  var btn = document.getElementById('locationBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '📍 Locating…'; }
 
   navigator.geolocation.getCurrentPosition(
     function(pos) {
       userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var nearby       = nearbyRouteAirports(userLocation.lat, userLocation.lng);
-      var metro        = checkMetroGroup(nearby);
+      var nearby        = nearbyRouteAirports(userLocation.lat, userLocation.lng);
+      var metro         = checkMetroGroup(nearby);
       var metroAirports = metro ? nearby.filter(function(a) {
         return metro.airports.indexOf(a.iata) !== -1;
       }) : [];
@@ -4000,7 +4006,7 @@ function locationViewAllow() {
       if (ts) ts.value = airport.iata;
       document.getElementById('locationLabel').textContent = airport.city.split(',')[0] + ' (' + airport.iata + ')';
       document.getElementById('locationBadge').classList.add('visible');
-      document.getElementById('locationBtn').style.display = 'none';
+      if (btn) btn.style.display = 'none';
       onAirportChange();
 
       if (metro && metroAirports.length > 1) {
@@ -4011,20 +4017,13 @@ function locationViewAllow() {
         _routeTargetAirport = airport;
         document.getElementById('airportRoutePicker').classList.remove('visible');
       }
-      proceedAfterLocation();
     },
     function() {
-      var btn2 = document.getElementById('locAllowBtn');
-      if (btn2) { btn2.disabled = false; btn2.textContent = '📍 Use My Location'; }
-      proceedAfterLocation();
+      if (btn) { btn.disabled = false; btn.textContent = '📍 My Location'; }
     },
     { timeout: 8000, maximumAge: 300000 }
   );
 }
-
-function locationViewSkip() { proceedAfterLocation(); }
-
-function proceedAfterLocation() { showView(pendingMode); }
 
 function populateTrackerAirports() {
   var sel = document.getElementById('trackerAirportSelect');
