@@ -813,6 +813,81 @@
     .leave-modal-title { font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; }
     .leave-modal-card .calc-result { display:block !important; }
     .leave-modal-card .uber-cta { display:flex !important; }
+
+    /* ══ AIRPORT CONDITIONS (Weather + FAA Status) ══════════════ */
+    .conditions-section { margin-bottom: 20px; }
+    .conditions-card { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .conditions-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    /* Flight category badge */
+    .flt-cat {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 13px; border-radius: 99px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      border: 1px solid; flex-shrink: 0;
+    }
+    .flt-cat-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .flt-cat.VFR  { background: rgba(34,211,238,0.13); border-color: rgba(34,211,238,0.35); color: var(--safe);     }
+    .flt-cat.VFR  .flt-cat-dot { background: var(--safe);     }
+    .flt-cat.MVFR { background: rgba(251,191,36,0.13);  border-color: rgba(251,191,36,0.35);  color: var(--soon);     }
+    .flt-cat.MVFR .flt-cat-dot { background: var(--soon);     }
+    .flt-cat.IFR  { background: rgba(249,115,22,0.13);  border-color: rgba(249,115,22,0.35);  color: var(--urgent);   }
+    .flt-cat.IFR  .flt-cat-dot { background: var(--urgent);   }
+    .flt-cat.LIFR { background: rgba(239,68,68,0.13);   border-color: rgba(239,68,68,0.35);   color: var(--critical); }
+    .flt-cat.LIFR .flt-cat-dot { background: var(--critical); }
+    /* Phenomena chips */
+    .cond-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+    .cond-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 99px;
+      font-size: 12px; font-weight: 600; border: 1px solid;
+    }
+    .cond-chip.info { background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.25); color: var(--accent); }
+    .cond-chip.warn { background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.25); color: var(--soon);   }
+    .cond-chip.crit { background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.25);  color: var(--critical); }
+    /* Stat grid */
+    .cond-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px 16px; }
+    .cond-stat { display: flex; flex-direction: column; gap: 3px; }
+    .cond-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+    .cond-stat-val   { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.2; }
+    /* Delay factors */
+    .cond-factors { display: flex; gap: 7px; flex-wrap: wrap; }
+    .cond-factor {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 10px;
+      font-size: 12px; font-weight: 600; border: 1px solid;
+    }
+    .cond-factor.warn { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.20); color: var(--soon);   }
+    .cond-factor.crit { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.20);  color: var(--critical); }
+    /* FAA program cards */
+    .faa-program {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; border-radius: 12px;
+      border: 1px solid;
+    }
+    .faa-program.warn { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.20); }
+    .faa-program.crit { background: rgba(239,68,68,0.07);  border-color: rgba(239,68,68,0.22);  }
+    .faa-program-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .faa-program-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .faa-program-head { font-size: 13px; font-weight: 700; color: var(--text); }
+    .faa-program-detail { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .faa-program-trend { font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .faa-program-trend.Increasing { color: var(--critical); }
+    .faa-program-trend.Decreasing { color: var(--safe); }
+    .faa-program-trend.Stagnant   { color: var(--soon); }
+    /* Raw METAR strip */
+    .cond-metar {
+      font-size: 10.5px; color: var(--muted); font-family: 'SF Mono', 'Fira Code', monospace;
+      padding: 7px 11px; background: rgba(0,0,0,0.25); border-radius: 8px;
+      word-break: break-all; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .cond-metar-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    /* SPECI badge */
+    .speci-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 9px; border-radius: 99px; font-size: 10px; font-weight: 700;
+      background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.35);
+      color: var(--urgent); letter-spacing: 0.8px; text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -891,6 +966,17 @@
       <button class="btn-ghost" onclick="loadTerminals()">↺ Refresh</button>
       <span class="live-pill" id="liveIndicator">Live</span>
     </div>
+
+    <!-- Airport Conditions — Weather + FAA Status -->
+    <section class="conditions-section" id="conditionsSection" style="display:none;">
+      <div class="section-header" style="margin-bottom:10px;">
+        <span class="section-label">Airport Conditions</span>
+        <span class="live-pill" id="conditionsLivePill">Live</span>
+      </div>
+      <div class="glass conditions-card" id="conditionsCard">
+        <!-- populated by loadAirportConditions() -->
+      </div>
+    </section>
 
     <!-- Gate Zero™ -->
     <section class="gate-zero" id="gate-zero">
@@ -2376,6 +2462,7 @@ function onAirportChange() {
   const iata = document.getElementById('airportSelect').value;
   loadTerminals();
   loadBoard(iata);
+  loadAirportConditions(iata);
   // When live traffic is on, clear stale aircraft from the previous airport
   // and immediately fetch fresh data for the new airport.
   if (liveTrafficOn) {
@@ -4092,6 +4179,177 @@ function closeLeaveModalBtn() {
   };
 })();
 // ════════════════════════════════════════════════════════════════
+// AIRPORT CONDITIONS — Weather + FAA Status
+// ════════════════════════════════════════════════════════════════
+(function() {
+  var _conditionsRefreshTimer = null;
+
+  // Flight category → display config
+  var CAT_CONFIG = {
+    VFR:  { dot: '#22d3ee', label: 'VFR',  desc: 'Visual Flight Rules — clear conditions'              },
+    MVFR: { dot: '#fbbf24', label: 'MVFR', desc: 'Marginal VFR — reduced visibility or ceiling'        },
+    IFR:  { dot: '#f97316', label: 'IFR',  desc: 'Instrument Flight Rules — low ceilings / visibility' },
+    LIFR: { dot: '#ef4444', label: 'LIFR', desc: 'Low IFR — severe restriction, possible diversions'   },
+  };
+
+  var FAA_ICONS = {
+    ground_delay:   '⏳',
+    ground_stop:    '🛑',
+    arrival_delay:  '🔽',
+    departure_delay:'🔼',
+    closure:        '🚫',
+    airspace_flow:  '⚠️',
+  };
+
+  function visibStr(sm) {
+    if (sm >= 10) return '10+ SM';
+    if (sm < 1)   return (Math.round(sm * 4) / 4).toFixed(2) + ' SM';
+    return sm + ' SM';
+  }
+
+  function ceilStr(ft) {
+    if (ft == null) return 'Unrestricted';
+    if (ft >= 10000) return '10,000+ ft';
+    return ft.toLocaleString() + ' ft';
+  }
+
+  function renderConditions(weather, faaStatus) {
+    var section = document.getElementById('conditionsSection');
+    var card    = document.getElementById('conditionsCard');
+    if (!section || !card) return;
+
+    var html = '';
+    var hasContent = false;
+
+    // ── Weather section ────────────────────────────────────
+    if (weather && weather.flightCat) {
+      hasContent = true;
+      var cat    = weather.flightCat;
+      var cfg    = CAT_CONFIG[cat] || CAT_CONFIG['VFR'];
+      var wspd   = weather.windSpd || 0;
+      var wgst   = weather.windGust;
+      var windTxt = wspd === 0 ? 'Calm'
+                  : weather.windDir + ' ' + wspd + (wgst ? 'G' + wgst : '') + ' kts';
+
+      // Row 1: flight cat badge + phenomena chips
+      html += '<div class="conditions-row">';
+      html += '<span class="flt-cat ' + cat + '" title="' + cfg.desc + '">'
+            +   '<span class="flt-cat-dot" style="background:' + cfg.dot + ';"></span>'
+            +   cfg.label
+            + '</span>';
+      if (weather.isSpeci) html += '<span class="speci-badge">SPECI</span>';
+      if (weather.phenomena && weather.phenomena.length) {
+        html += '<div class="cond-chips">';
+        weather.phenomena.forEach(function(p) {
+          html += '<span class="cond-chip ' + p.severity + '">' + esc(p.label) + '</span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Row 2: stats grid
+      html += '<div class="cond-stats">'
+            +   '<div class="cond-stat"><span class="cond-stat-label">Visibility</span>'
+            +     '<span class="cond-stat-val">' + visibStr(weather.visibility) + '</span></div>'
+            +   '<div class="cond-stat"><span class="cond-stat-label">Ceiling</span>'
+            +     '<span class="cond-stat-val">' + ceilStr(weather.ceiling) + '</span></div>'
+            +   '<div class="cond-stat"><span class="cond-stat-label">Wind</span>'
+            +     '<span class="cond-stat-val">' + esc(windTxt) + '</span></div>'
+            +   '<div class="cond-stat"><span class="cond-stat-label">Temperature</span>'
+            +     '<span class="cond-stat-val">' + esc(weather.tempF) + '</span></div>'
+            + '</div>';
+
+      // Row 3: delay risk factors (only if risk > low)
+      if (weather.delayRisk && weather.delayRisk.factors && weather.delayRisk.factors.length) {
+        var sev = weather.delayRisk.risk === 'high' ? 'crit' : 'warn';
+        html += '<div class="cond-factors">';
+        weather.delayRisk.factors.forEach(function(f) {
+          html += '<span class="cond-factor ' + sev + '">⚠ ' + esc(f) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Raw METAR — always shown; useful for experienced travelers
+      html += '<div>'
+            +   '<div class="cond-metar-label">Raw METAR</div>'
+            +   '<div class="cond-metar">' + esc(weather.rawMetar) + '</div>'
+            + '</div>';
+    }
+
+    // ── FAA programs ───────────────────────────────────────
+    if (faaStatus && faaStatus.programs && faaStatus.programs.length) {
+      hasContent = true;
+      faaStatus.programs.forEach(function(p) {
+        var icon = FAA_ICONS[p.type] || '⚠️';
+        html += '<div class="faa-program ' + p.severity + '">'
+              +   '<span class="faa-program-icon">' + icon + '</span>'
+              +   '<div class="faa-program-body">'
+              +     '<div class="faa-program-head">' + esc(p.headline) + '</div>'
+              +     '<div class="faa-program-detail">' + esc(p.detail) + '</div>'
+              +     (p.trend ? '<div class="faa-program-trend ' + esc(p.trend) + '">Trend: ' + esc(p.trend) + '</div>' : '')
+              +   '</div>'
+              + '</div>';
+      });
+    }
+
+    if (hasContent) {
+      card.innerHTML = html;
+      section.style.display = 'block';
+    } else {
+      section.style.display = 'none';
+    }
+  }
+
+  window.loadAirportConditions = async function loadAirportConditions(iata) {
+    var section = document.getElementById('conditionsSection');
+    var card    = document.getElementById('conditionsCard');
+    if (!section || !card) return;
+
+    // Clear any previous refresh timer
+    if (_conditionsRefreshTimer) { clearInterval(_conditionsRefreshTimer); _conditionsRefreshTimer = null; }
+
+    // Show skeleton while loading
+    card.innerHTML = '<div class="cond-stats">'
+      + [80, 60, 70, 50].map(function(w) {
+          return '<div class="cond-stat"><div class="skeleton sk-txt" style="width:' + w + 'px;height:10px;margin-bottom:4px;"></div>'
+               + '<div class="skeleton sk-txt" style="width:' + (w + 20) + 'px;height:16px;"></div></div>';
+        }).join('')
+      + '</div>';
+    section.style.display = 'block';
+
+    var encoded = encodeURIComponent(iata);
+    var results;
+    try {
+      results = await Promise.allSettled([
+        fetch('/api/weather?airportIata='    + encoded).then(function(r) { return r.ok ? r.json() : null; }),
+        fetch('/api/faa-status?airportIata=' + encoded).then(function(r) { return r.ok ? r.json() : null; }),
+      ]);
+    } catch(e) {
+      section.style.display = 'none';
+      return;
+    }
+
+    var weather   = results[0].status === 'fulfilled' ? results[0].value : null;
+    var faaStatus = results[1].status === 'fulfilled' ? results[1].value : null;
+
+    renderConditions(weather, faaStatus);
+
+    // Auto-refresh every 3 minutes (aligned with server cache TTL)
+    _conditionsRefreshTimer = setInterval(function() {
+      Promise.allSettled([
+        fetch('/api/weather?airportIata='    + encoded).then(function(r) { return r.ok ? r.json() : null; }),
+        fetch('/api/faa-status?airportIata=' + encoded).then(function(r) { return r.ok ? r.json() : null; }),
+      ]).then(function(res) {
+        renderConditions(
+          res[0].status === 'fulfilled' ? res[0].value : null,
+          res[1].status === 'fulfilled' ? res[1].value : null,
+        );
+      }).catch(function() {});
+    }, 3 * 60 * 1000);
+  };
+})();
+
+// ════════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════════
 populateAirports();
@@ -4108,6 +4366,8 @@ if (isPremium) {
 }
 
 loadTerminals();
+var _initIata = document.getElementById('airportSelect').value || 'ATL';
+loadAirportConditions(_initIata);
 showView('home');
 </script>
 </body>
