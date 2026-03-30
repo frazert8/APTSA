@@ -4318,33 +4318,24 @@ function closeLeaveModalBtn() {
     section.style.display = 'block';
 
     var encoded = encodeURIComponent(iata);
-    var results;
+    var data;
     try {
-      results = await Promise.allSettled([
-        fetch('/api/weather?airportIata='    + encoded).then(function(r) { return r.ok ? r.json() : null; }),
-        fetch('/api/faa-status?airportIata=' + encoded).then(function(r) { return r.ok ? r.json() : null; }),
-      ]);
+      var r = await fetch('/api/airport-conditions?airportIata=' + encoded);
+      data  = r.ok ? await r.json() : null;
     } catch(e) {
       section.style.display = 'none';
       return;
     }
 
-    var weather   = results[0].status === 'fulfilled' ? results[0].value : null;
-    var faaStatus = results[1].status === 'fulfilled' ? results[1].value : null;
-
-    renderConditions(weather, faaStatus);
+    if (data) renderConditions(data.weather, data.faaStatus);
+    else       section.style.display = 'none';
 
     // Auto-refresh every 3 minutes (aligned with server cache TTL)
     _conditionsRefreshTimer = setInterval(function() {
-      Promise.allSettled([
-        fetch('/api/weather?airportIata='    + encoded).then(function(r) { return r.ok ? r.json() : null; }),
-        fetch('/api/faa-status?airportIata=' + encoded).then(function(r) { return r.ok ? r.json() : null; }),
-      ]).then(function(res) {
-        renderConditions(
-          res[0].status === 'fulfilled' ? res[0].value : null,
-          res[1].status === 'fulfilled' ? res[1].value : null,
-        );
-      }).catch(function() {});
+      fetch('/api/airport-conditions?airportIata=' + encoded)
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) { if (d) renderConditions(d.weather, d.faaStatus); })
+        .catch(function() {});
     }, 3 * 60 * 1000);
   };
 })();
