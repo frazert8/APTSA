@@ -814,6 +814,16 @@
     .leave-modal-card .calc-result { display:block !important; }
     .leave-modal-card .uber-cta { display:flex !important; }
 
+    /* ══ NATIONAL MODE TOGGLE ═══════════════════════════════════ */
+    .btn-national {
+      background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.30);
+      color: var(--safe); padding: 7px 14px; border-radius: 10px;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-national:hover { background: rgba(34,211,238,0.18); border-color: rgba(34,211,238,0.5); }
+    .btn-national.airport-mode { background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.30); color: var(--accent); }
+
     /* ══ AIRPORT CONDITIONS (Weather + FAA Status) ══════════════ */
     .conditions-section { margin-bottom: 20px; }
     .conditions-card { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -1153,6 +1163,7 @@
       <path transform="translate(188,14) rotate(-10) scale(0.5) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
     </svg>
       <div class="topbar-spacer"></div>
+      <button class="btn-national" id="nationalModeBtn" onclick="toggleNationalMode()">🌎 US National</button>
       <select id="trackerAirportSelect" onchange="onTrackerAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
       <span class="live-pill" id="trafficCount" style="min-width:90px;">Loading…</span>
       <button class="btn-ghost" id="trafficToggleBtn" onclick="toggleLiveTraffic()" style="font-size:11px;">⏹ Hide Traffic</button>
@@ -2810,12 +2821,15 @@ var simTimer        = null;      // 2 s interpolation tick
 var liveTimer       = null;      // 20 s API poll
 var trafficMarkers  = {};
 var liveTrafficOn   = false;
-var liveApiMode        = false;  // true = real OpenSky data is active
+var liveApiMode        = false;  // true = real ADS-B data is active
 var _hasEverSeenLive   = false;  // once true, never fall back to simulation
 var lastLiveIata       = '';
 var _simUid         = 0;
-var selectedAirline = 'TOP';     // 'TOP' | 'ALL' | ICAO code
+var selectedAirline = 'ALL';     // 'ALL' | ICAO code
 var _lastSeenAt     = {};        // icao24 → timestamp for stale-aircraft eviction
+// National mode: show all CONUS traffic for top 8 US airlines
+var _nationalMode   = true;
+var _TOP8_CODES     = ['AAL','DAL','UAL','SWA','ASA','JBU','NKS','FFT'];
 
 // ── Dead reckoning ────────────────────────────────────────────
 // Extrapolates position forward by dtSeconds using speed + heading.
@@ -3000,7 +3014,36 @@ function _mergeLiveData(incoming) {
   });
 }
 
-// ── Live API poller ───────────────────────────────────────────
+// ── Live API pollers ──────────────────────────────────────────
+
+function _handleLiveData(data, label) {
+  if (data && Array.isArray(data.aircraft) && data.aircraft.length > 0) {
+    simFleet         = simFleet.filter(function(ac) { return !!ac.icao24; });
+    liveApiMode      = true;
+    _hasEverSeenLive = true;
+    _mergeLiveData(data.aircraft);
+    _setLiveBadge(true, data.count, label);
+  } else {
+    simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
+    _setLiveBadge(_hasEverSeenLive ? true : 'empty', simFleet.length, label);
+  }
+}
+
+function fetchNationalTraffic() {
+  if (!liveTrafficOn) return;
+  fetch('/api/live-traffic?mode=national')
+    .then(function(r) {
+      if (r.status === 429) return Promise.reject('rate_limited');
+      return r.ok ? r.json() : Promise.reject('http_' + r.status);
+    })
+    .then(function(data) { _handleLiveData(data, 'national'); })
+    .catch(function(reason) {
+      if (reason === 'rate_limited') { _setLiveBadge('rate_limited', simFleet.filter(function(ac){ return !!ac.icao24; }).length, 'national'); return; }
+      if (_hasEverSeenLive) { _setLiveBadge('stale', simFleet.filter(function(ac){ return !!ac.icao24; }).length, 'national'); }
+      else { simFleet = []; liveApiMode = false; _setLiveBadge('unavailable', 0, 'national'); }
+    });
+}
+
 function fetchLiveTraffic(iata) {
   if (!iata || !liveTrafficOn) return;
   fetch('/api/live-traffic?airportIata=' + encodeURIComponent(iata))
@@ -3008,75 +3051,50 @@ function fetchLiveTraffic(iata) {
       if (r.status === 429) return Promise.reject('rate_limited');
       return r.ok ? r.json() : Promise.reject('http_' + r.status);
     })
-    .then(function(data) {
-      if (data && Array.isArray(data.aircraft) && data.aircraft.length > 0) {
-        // Clear ALL simulation aircraft — never mix fake + real
-        simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
-        liveApiMode      = true;
-        _hasEverSeenLive = true;
-        _mergeLiveData(data.aircraft);
-        _setLiveBadge(true, data.count, iata);
-      } else {
-        // API worked but zero commercial aircraft in bounding box.
-        // Keep existing live aircraft already being dead-reckoned.
-        simFleet = simFleet.filter(function(ac) { return !!ac.icao24; });
-        _setLiveBadge(_hasEverSeenLive ? true : 'empty', simFleet.length, iata);
-      }
-    })
+    .then(function(data) { _handleLiveData(data, iata); })
     .catch(function(reason) {
-      if (reason === 'rate_limited') {
-        _setLiveBadge('rate_limited', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata);
-        return;
-      }
-      // Network/server failure — keep any real aircraft already dead-reckoning.
-      // NEVER inject simulation: fake aircraft mislead users.
-      if (_hasEverSeenLive) {
-        _setLiveBadge('stale', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata);
-      } else {
-        simFleet = [];   // ensure map is empty — no fake data
-        liveApiMode = false;
-        _setLiveBadge('unavailable', 0, iata);
-      }
+      if (reason === 'rate_limited') { _setLiveBadge('rate_limited', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata); return; }
+      if (_hasEverSeenLive) { _setLiveBadge('stale', simFleet.filter(function(ac){ return !!ac.icao24; }).length, iata); }
+      else { simFleet = []; liveApiMode = false; _setLiveBadge('unavailable', 0, iata); }
     });
 }
 
-function _setLiveBadge(state, count, iata) {
-  var el = document.getElementById('liveDataBadge');
-  if (!el) return;
-  if (state === true) {
-    el.textContent = '● LIVE  ' + count + ' aircraft near ' + (iata || '');
-    el.style.color = 'var(--safe)';
-  } else if (state === 'loading') {
-    el.textContent = '⟳ Fetching live traffic…';
-    el.style.color = 'var(--muted)';
-  } else if (state === 'empty') {
-    el.textContent = '● LIVE — No aircraft in range';
-    el.style.color = 'var(--safe)';
-  } else if (state === 'stale') {
-    el.textContent = '⚠ LIVE (reconnecting…) ' + count + ' aircraft';
-    el.style.color = '#f59e0b';
-  } else if (state === 'rate_limited') {
-    el.textContent = count > 0
-      ? '⚠ Rate limited — showing ' + count + ' cached aircraft'
-      : '⚠ OpenSky rate limit reached — try again later';
-    el.style.color = '#f59e0b';
-  } else if (state === 'unavailable') {
-    el.textContent = '○ Live data unavailable — configure ADSBX_API_KEY or OPENSKY credentials';
-    el.style.color = 'var(--muted)';
-  } else {
-    el.textContent = '○ Connecting to live traffic…';
-    el.style.color = 'var(--muted)';
+function _setLiveBadge(state, count, label) {
+  var el  = document.getElementById('liveDataBadge');
+  var tc  = document.getElementById('trafficCount');
+  var nat = (label === 'national');
+  if (el) {
+    if (state === true) {
+      el.textContent = nat
+        ? '● LIVE  ' + count + ' aircraft · US National'
+        : '● LIVE  ' + count + ' aircraft near ' + (label || '');
+      el.style.color = 'var(--safe)';
+    } else if (state === 'loading') {
+      el.textContent = nat ? '⟳ Fetching US national traffic…' : '⟳ Fetching live traffic…';
+      el.style.color = 'var(--muted)';
+    } else if (state === 'empty') {
+      el.textContent = nat ? '● LIVE — No top-8 aircraft in CONUS' : '● LIVE — No aircraft in range';
+      el.style.color = 'var(--safe)';
+    } else if (state === 'stale') {
+      el.textContent = '⚠ LIVE (reconnecting…) ' + count + ' aircraft';
+      el.style.color = '#f59e0b';
+    } else if (state === 'rate_limited') {
+      el.textContent = count > 0 ? '⚠ Rate limited — showing ' + count + ' cached aircraft' : '⚠ Rate limit — try again shortly';
+      el.style.color = '#f59e0b';
+    } else if (state === 'unavailable') {
+      el.textContent = nat ? '○ National traffic unavailable — check back shortly' : '○ Live data unavailable';
+      el.style.color = 'var(--muted)';
+    } else {
+      el.textContent = '○ Connecting…';
+      el.style.color = 'var(--muted)';
+    }
   }
+  if (tc) tc.textContent = (state === true || state === 'stale') ? count + ' aircraft' : '—';
 }
 
 // ── Resolve which airline to display ─────────────────────────
 function resolvedAirline() {
-  if (selectedAirline === 'ALL') return 'ALL';
-  if (selectedAirline === 'TOP') {
-    var counts = airlineCounts();
-    var top = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; })[0];
-    return top || 'ALL';
-  }
+  if (!selectedAirline || selectedAirline === 'ALL' || selectedAirline === 'TOP') return 'ALL';
   return selectedAirline;
 }
 
@@ -3088,8 +3106,9 @@ function airlineCounts() {
 
 function renderFleet() {
   if (!mapsReady || !gmap) return;
-  var seen    = {};
-  var active  = resolvedAirline();
+  var seen   = {};
+  var active = resolvedAirline();
+  var small  = _nationalMode;   // smaller icons on zoomed-out national view
 
   simFleet.forEach(function(ac) {
     var visible = (active === 'ALL' || ac.airline === active);
@@ -3098,7 +3117,7 @@ function renderFleet() {
     if (trafficMarkers[ac.id]) {
       if (visible) {
         trafficMarkers[ac.id].setPosition({ lat: ac.lat, lng: ac.lon });
-        trafficMarkers[ac.id].setIcon(makePlaneIcon(ac.heading, airlineColor(ac.airline)));
+        trafficMarkers[ac.id].setIcon(makePlaneIcon(ac.heading, airlineColor(ac.airline), small));
         trafficMarkers[ac.id].setMap(gmap);
       } else {
         trafficMarkers[ac.id].setMap(null);
@@ -3108,7 +3127,7 @@ function renderFleet() {
         position: { lat: ac.lat, lng: ac.lon },
         map: gmap,
         title: ac.callsign,
-        icon: makePlaneIcon(ac.heading, airlineColor(ac.airline)),
+        icon: makePlaneIcon(ac.heading, airlineColor(ac.airline), small),
         zIndex: 2,
       });
       (function(a, m) {
@@ -3123,10 +3142,15 @@ function renderFleet() {
     if (!seen[id]) { trafficMarkers[id].setMap(null); delete trafficMarkers[id]; }
   });
 
-  var visibleCount = simFleet.filter(function(a) { return active==='ALL'||a.airline===active; }).length;
+  var visibleCount = simFleet.filter(function(a) { return active === 'ALL' || a.airline === active; }).length;
   updateTrafficCount(visibleCount);
-  buildLegend();
-  buildAirlineDropdown();
+
+  if (_nationalMode) {
+    _refreshNationalFilter();
+  } else {
+    buildLegend();
+    buildAirlineDropdown();
+  }
 }
 
 function mkStat(label, val) {
@@ -3161,28 +3185,99 @@ function updateTrafficCount(n) {
   if (el) el.textContent = n + ' aircraft';
 }
 
+function _applyNationalMapView() {
+  if (!mapsReady || !gmap) return;
+  gmap.setCenter({ lat: 39.5, lng: -98.35 });
+  gmap.setZoom(4);
+}
+
+function _applyAirportMapView(iata) {
+  if (!mapsReady || !gmap) return;
+  var airport = getAirport(iata || (document.getElementById('airportSelect')?.value || 'ATL'));
+  gmap.setCenter({ lat: airport.lat, lng: airport.lon });
+  gmap.setZoom(10);
+}
+
+function _updateNationalBtn() {
+  var btn = document.getElementById('nationalModeBtn');
+  var sel = document.getElementById('trackerAirportSelect');
+  if (!btn) return;
+  if (_nationalMode) {
+    btn.textContent = '🌎 US National';
+    btn.className = 'btn-national';
+    if (sel) sel.style.opacity = '0.5';
+  } else {
+    btn.textContent = '🏢 Airport View';
+    btn.className = 'btn-national airport-mode';
+    if (sel) sel.style.opacity = '1';
+  }
+}
+
+function toggleNationalMode() {
+  _nationalMode = !_nationalMode;
+  _updateNationalBtn();
+  clearTrafficMarkers();
+  _hasEverSeenLive = false;
+  selectedAirline = 'ALL';
+
+  if (_nationalMode) {
+    _applyNationalMapView();
+    _refreshNationalFilter();
+    if (liveTrafficOn) { _setLiveBadge('loading', 0, 'national'); fetchNationalTraffic(); }
+  } else {
+    var iata = document.getElementById('trackerAirportSelect')?.value || 'ATL';
+    _applyAirportMapView(iata);
+    if (liveTrafficOn) { _setLiveBadge('loading', 0, iata); fetchLiveTraffic(iata); }
+  }
+}
+
+function _refreshNationalFilter() {
+  var sel = document.getElementById('airlineFilterSelect');
+  if (!sel) return;
+  var counts = {};
+  simFleet.forEach(function(a) { counts[a.airline] = (counts[a.airline] || 0) + 1; });
+  var total = simFleet.length;
+  sel.innerHTML = '<option value="ALL">All Top 8 (' + total + ')</option>' +
+    _TOP8_CODES.map(function(code) {
+      var info = AIRLINE_INFO[code];
+      var name = info ? info.name : code;
+      return '<option value="' + code + '">' + esc(name) + ' (' + (counts[code] || 0) + ')</option>';
+    }).join('');
+  sel.value = (selectedAirline && selectedAirline !== 'TOP') ? selectedAirline : 'ALL';
+  var hint = document.getElementById('afHint');
+  if (hint) hint.textContent = 'Top 8 US airlines · select to filter';
+}
+
 function startLiveTraffic() {
   if (liveTrafficOn) return;
   liveTrafficOn = true;
   simFleet = [];
 
-  // Start with an empty map and a loading indicator.
-  // Simulation is only seeded in fetchLiveTraffic() if the network call
-  // completely fails — never mixed with real OpenSky data.
-  _setLiveBadge('loading', 0, '');
+  _updateNationalBtn();
+  _setLiveBadge('loading', 0, _nationalMode ? 'national' : '');
   renderFleet();
 
-  // Fire the first live-data fetch immediately
-  var iata = document.getElementById('airportSelect')?.value || '';
-  if (iata) fetchLiveTraffic(iata);
+  // Fire first fetch immediately
+  if (_nationalMode) {
+    _applyNationalMapView();
+    _refreshNationalFilter();
+    fetchNationalTraffic();
+  } else {
+    var iata = document.getElementById('airportSelect')?.value || '';
+    if (iata) fetchLiveTraffic(iata);
+  }
 
-  // Poll OpenSky every 20 s (state vectors update ~every 10–15 s)
+  // Poll every 20 s
   liveTimer = setInterval(function() {
-    var cur = document.getElementById('airportSelect')?.value || '';
-    if (cur) fetchLiveTraffic(cur);
+    if (_nationalMode) {
+      fetchNationalTraffic();
+    } else {
+      var cur = document.getElementById('airportSelect')?.value || '';
+      if (cur) fetchLiveTraffic(cur);
+    }
   }, 20000);
 
-  // Interpolate + render every 2 s (dead reckoning between polls)
+  // Dead-reckoning interpolation every 2 s
   simTimer = setInterval(function() { tickFleet(); renderFleet(); }, 2000);
 
   var btn = document.getElementById('trafficToggleBtn');
@@ -3293,20 +3388,23 @@ function airlineName(code) {
 }
 
 // SVG plane icon — rotated to heading, colored by airline
-function makePlaneIcon(heading, color) {
+// small=true uses 16px for national/zoomed-out map views
+function makePlaneIcon(heading, color, small) {
+  var sz   = small ? 16 : 28;
+  var half = sz / 2;
   var svg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="-14 -14 28 28">' +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + sz + '" height="' + sz + '" viewBox="-14 -14 28 28">' +
     '<g transform="rotate(' + Math.round(heading) + ')">' +
-      '<circle cx="0" cy="0" r="11" fill="' + color + '" opacity="0.13"/>' +
+      '<circle cx="0" cy="0" r="11" fill="' + color + '" opacity="' + (small ? '0.20' : '0.13') + '"/>' +
       '<polygon points="0,-3 -12,4 -10,7 0,3 10,7 12,4" fill="' + color + '" opacity="0.95"/>' +
       '<polygon points="0,-13 2.5,-2 2.5,5 0,3.5 -2.5,5 -2.5,-2" fill="' + color + '"/>' +
       '<polygon points="-2.5,3 -7,9 -6,11 0,7 6,11 7,9 2.5,3" fill="' + color + '" opacity="0.88"/>' +
-      '<ellipse cx="0" cy="-9" rx="1.1" ry="1.9" fill="rgba(255,255,255,0.5)"/>' +
+      (small ? '' : '<ellipse cx="0" cy="-9" rx="1.1" ry="1.9" fill="rgba(255,255,255,0.5)"/>') +
     '</g></svg>';
   return {
     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-    scaledSize: new google.maps.Size(28, 28),
-    anchor:     new google.maps.Point(14, 14),
+    scaledSize: new google.maps.Size(sz, sz),
+    anchor:     new google.maps.Point(half, half),
   };
 }
 

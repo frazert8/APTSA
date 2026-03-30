@@ -157,6 +157,20 @@ const CALLSIGN_PREFIX_MAP: Record<string, string> = {
   BWA: 'BWA',  // Caribbean Airlines
 };
 
+// ── Top 8 US airlines by passenger volume (ICAO designators) ──
+// Used as the exclusive filter for national-view mode.
+const TOP8_US = new Set(['AAL', 'DAL', 'UAL', 'SWA', 'ASA', 'JBU', 'NKS', 'FFT']);
+
+// ── Continental US coverage constants ─────────────────────────
+const CONUS = {
+  // Bounding box for OpenSky
+  lamin: 24.0, lamax: 49.5, lomin: -125.0, lomax: -66.5,
+  // Geographic center + radius for point-based APIs
+  lat:      39.8,
+  lon:      -98.6,
+  radiusNm: 1500,   // covers all 48 contiguous states
+} as const;
+
 export interface Aircraft {
   icao24:    string;
   callsign:  string;
@@ -177,6 +191,7 @@ export interface LiveTrafficData {
   fetchedAt: string;
   count:     number;
   source:    'opensky' | 'flightaware' | 'adsbexchange' | 'error';
+  mode?:     'airport' | 'national';
 }
 
 // ── Callsign → normalised ICAO airline code ───────────────────
@@ -286,9 +301,138 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET')    return res.status(405).json({ error: 'Method not allowed' });
 
+  const mode = (req.query['mode'] as string | undefined)?.toLowerCase();
   const iata = (req.query['airportIata'] as string | undefined)?.toUpperCase().trim();
+
+  // ════════════════════════════════════════════════════════════
+  // NATIONAL MODE — full CONUS coverage, top 8 US airlines only
+  // ════════════════════════════════════════════════════════════
+  if (mode === 'national') {
+    const natKey = 'livetraffic:national:v1';
+    try {
+      const natCached = await redis.get<LiveTrafficData>(natKey);
+      if (natCached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(natCached);
+      }
+    } catch { /* non-fatal */ }
+
+    // Filter: top 8 US airlines + airborne or taxiing only
+    function isTop8(ac: Aircraft): boolean {
+      return TOP8_US.has(ac.airline);
+    }
+
+    // Sort for national view: airborne first, then altitude desc (en-route cruisers first)
+    function sortNational(list: Aircraft[]): Aircraft[] {
+      return list
+        .filter(isTop8)
+        .sort((a, b) => {
+          if (a.onGround !== b.onGround) return a.onGround ? 1 : -1;
+          return b.altFt - a.altFt;
+        })
+        .slice(0, 300);
+    }
+
+    const natNow = Date.now();
+    const ua = { 'User-Agent': 'APTSA/1.0 (+https://aptsa.vercel.app)' };
+
+    // ── 1. ADS-B Exchange (if key available) ─────────────────
+    const adsbxKey = process.env['ADSBX_API_KEY'];
+    if (adsbxKey) {
+      try {
+        const url = `https://adsbexchange.com/api/aircraft/v2/lat/${CONUS.lat}/lon/${CONUS.lon}/dist/${CONUS.radiusNm}/`;
+        const r = await fetch(url, { headers: { 'api-auth': adsbxKey, ...ua }, signal: AbortSignal.timeout(8_000) });
+        if (r.ok) {
+          const json = (await r.json()) as { ac?: any[] };
+          const parsed = (json.ac ?? [])
+            .filter((a: any) => { const cs = String(a.flight ?? '').trim().toUpperCase(); return /^[A-Z]{3}\d/.test(cs) && !(/^[A-Z]-|^[A-Z]{1,2}\d|^N\d|^VH|^C-|^G-|^D-/.test(cs)); })
+            .map((a: any): Aircraft => {
+              const cs = String(a.flight ?? '').trim().toUpperCase();
+              const altFt = Number(a.alt_baro ?? a.alt_geom ?? 0);
+              const speedKts = Number(a.gs ?? 0);
+              const onGround = a.alt_baro === 'ground' || (altFt < 100 && speedKts < 30);
+              return { icao24: String(a.hex ?? '').toLowerCase(), callsign: cs, lat: Number(a.lat), lon: Number(a.lon),
+                altFt: isNaN(altFt) ? 0 : Math.round(altFt), speedKts: Math.round(speedKts), heading: Math.round(Number(a.track ?? 0)),
+                vertRate: Number(a.baro_rate ?? 0) / 60, onGround, airline: resolveAirline(cs), squawk: String(a.squawk ?? '') };
+            })
+            .filter((a: Aircraft) => !isNaN(a.lat) && !isNaN(a.lon) && (a.onGround ? a.speedKts >= 20 : true));
+
+          const aircraft = sortNational(parsed);
+          if (aircraft.length > 0) {
+            const result: LiveTrafficData = { iata: 'US', aircraft, fetchedAt: new Date().toISOString(), count: aircraft.length, source: 'adsbexchange', mode: 'national' };
+            await redis.setex(natKey, 15, result).catch(() => {});
+            res.setHeader('X-Cache', 'MISS'); res.setHeader('X-Traffic-Source', 'adsbexchange-national');
+            return res.status(200).json(result);
+          }
+        }
+      } catch { /* fall through */ }
+    }
+
+    // ── 2. airplanes.live (free, no key, national radius) ────
+    try {
+      const url = `https://api.airplanes.live/v2/point/${CONUS.lat}/${CONUS.lon}/${CONUS.radiusNm}`;
+      const r = await fetch(url, { headers: ua, signal: AbortSignal.timeout(10_000) });
+      if (r.ok) {
+        const json = (await r.json()) as { ac?: any[] };
+        const parsed = (json.ac ?? [])
+          .filter((a: any) => {
+            const cs = String(a.flight ?? '').trim().toUpperCase();
+            if (!cs) return false;
+            if ((a.seen_pos ?? 0) > 120) return false;
+            const isIcao = /^[A-Z]{3}\d/.test(cs);
+            const isReg  = /^[A-Z]-|^[A-Z]{1,2}\d|^N\d|^VH|^C-|^G-|^D-/.test(cs);
+            return isIcao && !isReg;
+          })
+          .map((a: any): Aircraft => {
+            const cs = String(a.flight ?? '').trim().toUpperCase();
+            const altFt = Number(a.alt_baro ?? a.alt_geom ?? 0);
+            const speedKts = Number(a.gs ?? 0);
+            const onGround = a.alt_baro === 'ground' || (altFt < 100 && speedKts < 30);
+            return { icao24: String(a.hex ?? '').toLowerCase(), callsign: cs, lat: Number(a.lat), lon: Number(a.lon),
+              altFt: isNaN(altFt) ? 0 : Math.round(altFt), speedKts: Math.round(speedKts), heading: Math.round(Number(a.track ?? 0)),
+              vertRate: (Number(a.baro_rate ?? a.geom_rate ?? 0)) / 196.85, onGround, airline: resolveAirline(cs), squawk: String(a.squawk ?? '') };
+          })
+          .filter((a: Aircraft) => !isNaN(a.lat) && !isNaN(a.lon) && (a.onGround ? a.speedKts >= 20 : true));
+
+        const aircraft = sortNational(parsed);
+        if (aircraft.length > 0) {
+          const result: LiveTrafficData = { iata: 'US', aircraft, fetchedAt: new Date().toISOString(), count: aircraft.length, source: 'opensky', mode: 'national' };
+          await redis.setex(natKey, 15, result).catch(() => {});
+          res.setHeader('X-Cache', 'MISS'); res.setHeader('X-Traffic-Source', 'airplanes.live-national');
+          return res.status(200).json(result);
+        }
+      }
+    } catch { /* fall through */ }
+
+    // ── 3. OpenSky CONUS bounding box (last resort) ──────────
+    try {
+      const { lamin, lamax, lomin, lomax } = CONUS;
+      const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lamax=${lamax}&lomin=${lomin}&lomax=${lomax}`;
+      const osUser = process.env['OPENSKY_USER']; const osPass = process.env['OPENSKY_PASS'];
+      const hdrs: Record<string, string> = { ...ua };
+      if (osUser && osPass) hdrs['Authorization'] = 'Basic ' + Buffer.from(`${osUser}:${osPass}`).toString('base64');
+      const r = await fetch(url, { headers: hdrs, signal: AbortSignal.timeout(10_000) });
+      if (!r.ok) throw new Error(`OpenSky ${r.status}`);
+      const json = (await r.json()) as { states?: unknown[][] };
+      const parsed = (json.states ?? []).map(s => parseState(s, natNow)).filter((a): a is Aircraft => a !== null);
+      const aircraft = sortNational(parsed);
+      const result: LiveTrafficData = { iata: 'US', aircraft, fetchedAt: new Date().toISOString(), count: aircraft.length, source: 'opensky', mode: 'national' };
+      const ttl = (osUser && osPass) ? 20 : 60;
+      await redis.setex(natKey, ttl, result).catch(() => {});
+      res.setHeader('X-Cache', 'MISS'); res.setHeader('X-Traffic-Source', 'opensky-national');
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error(`[live-traffic] national mode all sources failed: ${err instanceof Error ? err.message : err}`);
+    }
+
+    return res.status(200).json({ iata: 'US', aircraft: [], fetchedAt: new Date().toISOString(), count: 0, source: 'error' as const, mode: 'national', error: 'National traffic temporarily unavailable' });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // AIRPORT MODE (existing behaviour — unchanged)
+  // ════════════════════════════════════════════════════════════
   if (!iata || iata.length !== 3) {
-    return res.status(400).json({ error: 'airportIata required (e.g. ATL)' });
+    return res.status(400).json({ error: 'airportIata required (e.g. ATL) or mode=national' });
   }
 
   const coords = AIRPORT_COORDS[iata];
