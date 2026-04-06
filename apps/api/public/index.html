@@ -772,6 +772,42 @@
     .tracker-btn:hover { border-color:rgba(34,211,238,0.6); box-shadow:0 20px 60px rgba(34,211,238,0.12); }
     .tracker-btn .mode-btn-label { color:var(--safe); }
 
+    /* ══ HOME LOCATION BANNER ══════════════════════════════════════ */
+    .home-loc-banner {
+      margin-top: 20px; padding: 14px 18px; max-width: 560px; width: 100%;
+      background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.28);
+      border-radius: 16px; display: flex; align-items: center; gap: 14px;
+      animation: viewFadeIn 0.4s ease both;
+    }
+    .home-loc-icon { font-size: 26px; flex-shrink: 0; }
+    .home-loc-text { flex: 1; }
+    .home-loc-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .home-loc-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .home-loc-allow {
+      flex-shrink: 0; padding: 10px 18px; border-radius: 12px;
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+      color: #fff; border: none; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+    }
+    .home-loc-allow:hover { opacity: 0.85; }
+    .home-loc-allow:disabled { opacity: 0.45; cursor: not-allowed; }
+    .home-loc-denied { font-size: 12px; color: var(--urgent); flex-shrink: 0; }
+
+    /* ══ HOME WEATHER STRIP ════════════════════════════════════════ */
+    .home-wx-strip {
+      margin-top: 16px; max-width: 560px; width: 100%;
+      padding: 16px 20px; border-radius: 18px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      backdrop-filter: blur(20px); animation: viewFadeIn 0.4s ease both;
+    }
+    .home-wx-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .home-wx-loc { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .home-wx-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    @media (max-width:480px) { .home-wx-grid { grid-template-columns: repeat(2,1fr); } }
+    .home-wx-stat { display: flex; flex-direction: column; gap: 2px; }
+    .home-wx-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .home-wx-val { font-size: 15px; font-weight: 700; color: var(--text); }
+
     /* ══ LOCATION VIEW ════════════════════════════════════════════ */
     .loc-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 20px; text-align:center; }
     .loc-icon { font-size:72px; margin-bottom:24px; }
@@ -933,6 +969,26 @@
         <span class="mode-btn-desc">Real-time air traffic map and live flight departure board</span>
       </button>
     </div>
+
+    <!-- Location permission banner — shown until granted or denied -->
+    <div id="homeLocBanner" class="home-loc-banner" style="display:none;">
+      <span class="home-loc-icon">📍</span>
+      <div class="home-loc-text">
+        <div class="home-loc-title">Share your location</div>
+        <div class="home-loc-sub">Get live weather &amp; conditions for your nearest airport</div>
+      </div>
+      <button class="home-loc-allow" id="homeLocAllowBtn" onclick="requestHomeLocation()">Allow Location</button>
+    </div>
+
+    <!-- Mini weather strip — revealed after location granted -->
+    <div id="homeWxStrip" class="home-wx-strip" style="display:none;">
+      <div class="home-wx-header">
+        <span class="live-pill" style="font-size:10px;">Live</span>
+        <span id="homeWxLocLabel" class="home-wx-loc"></span>
+      </div>
+      <div id="homeWxGrid" class="home-wx-grid"></div>
+    </div>
+
   </div>
 </div>
 
@@ -4149,6 +4205,7 @@ var _boardRefreshTimer = null;
 function showView(id) {
   document.querySelectorAll('.app-view').forEach(function(v) { v.classList.remove('active'); });
   document.getElementById('view-' + id).classList.add('active');
+  if (id === 'home') { _initHomeLocationBanner(); }
   if (id === 'tracker' && !mapsReady) { loadGoogleMaps(); }
   if (id === 'tracker' && !_boardRefreshTimer) {
     var iata = document.getElementById('airportSelect').value || 'ATL';
@@ -4165,10 +4222,152 @@ function showView(id) {
 
 function pickMode(mode) {
   showView(mode);
-  // Silently request location in the background — no intermediate screen.
-  // On success the airport select + drive time auto-fill; on denial the user
-  // can still enter manually. The location button shows feedback inline.
-  _autoDetectLocation();
+  // If location already resolved from home screen, apply it; else request now.
+  if (userLocation) {
+    var airport = nearestAirport(userLocation.lat, userLocation.lng);
+    document.getElementById('airportSelect').value = airport.iata;
+    var ts = document.getElementById('trackerAirportSelect');
+    if (ts) ts.value = airport.iata;
+    document.getElementById('locationLabel').textContent = airport.city.split(',')[0] + ' (' + airport.iata + ')';
+    document.getElementById('locationBadge').classList.add('visible');
+    var lb = document.getElementById('locationBtn');
+    if (lb) lb.style.display = 'none';
+    onAirportChange();
+  } else {
+    _autoDetectLocation();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// HOME SCREEN LOCATION + WEATHER
+// ════════════════════════════════════════════════════════════════
+
+function _initHomeLocationBanner() {
+  // If location already resolved, show weather strip directly
+  if (userLocation) {
+    var airport = nearestAirport(userLocation.lat, userLocation.lng);
+    _renderHomeWeather(airport);
+    return;
+  }
+  var banner = document.getElementById('homeLocBanner');
+  if (!banner || !navigator.geolocation) return;
+
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+      if (result.state === 'granted') {
+        // Already granted — silently resolve and show weather
+        _resolveHomeLocation(false);
+      } else if (result.state === 'denied') {
+        // Don't annoy user with a banner they can't act on
+        banner.style.display = 'none';
+      } else {
+        // 'prompt' — show the banner with an explicit Allow button
+        banner.style.display = 'flex';
+      }
+    }).catch(function() {
+      banner.style.display = 'flex';
+    });
+  } else {
+    // No Permissions API (old browser / Safari) — show banner
+    banner.style.display = 'flex';
+  }
+}
+
+function requestHomeLocation() {
+  var btn = document.getElementById('homeLocAllowBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '📍 Locating…'; }
+  _resolveHomeLocation(true);
+}
+
+function _resolveHomeLocation(userInitiated) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      var airport  = nearestAirport(userLocation.lat, userLocation.lng);
+
+      // Hide banner
+      var banner = document.getElementById('homeLocBanner');
+      if (banner) banner.style.display = 'none';
+
+      // Pre-fill airport selects so mode pages are ready
+      document.getElementById('airportSelect').value = airport.iata;
+      var ts = document.getElementById('trackerAirportSelect');
+      if (ts) ts.value = airport.iata;
+      document.getElementById('locationLabel').textContent = airport.city.split(',')[0] + ' (' + airport.iata + ')';
+      document.getElementById('locationBadge').classList.add('visible');
+      var lb = document.getElementById('locationBtn');
+      if (lb) lb.style.display = 'none';
+
+      _renderHomeWeather(airport);
+    },
+    function(err) {
+      var btn = document.getElementById('homeLocAllowBtn');
+      var banner = document.getElementById('homeLocBanner');
+      if (err.code === 1) {
+        // Denied — replace button with message
+        if (banner) {
+          var deny = document.createElement('span');
+          deny.className = 'home-loc-denied';
+          deny.textContent = 'Location denied';
+          if (btn) btn.replaceWith(deny);
+          // Auto-hide after 3 s
+          setTimeout(function() { banner.style.display = 'none'; }, 3000);
+        }
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Allow Location'; }
+      }
+    },
+    { timeout: 8000, maximumAge: 300000 }
+  );
+}
+
+async function _renderHomeWeather(airport) {
+  var strip = document.getElementById('homeWxStrip');
+  var locEl = document.getElementById('homeWxLocLabel');
+  var grid  = document.getElementById('homeWxGrid');
+  if (!strip || !grid) return;
+
+  locEl.textContent = '📍 ' + airport.city.split(',')[0] + ' (' + airport.iata + ')';
+  grid.innerHTML = [80,60,70,50].map(function(w) {
+    return '<div class="home-wx-stat">'
+      + '<div class="skeleton home-wx-label" style="width:' + w + 'px;height:8px;margin-bottom:4px;border-radius:3px;"></div>'
+      + '<div class="skeleton" style="width:' + (w+10) + 'px;height:14px;border-radius:3px;"></div>'
+      + '</div>';
+  }).join('');
+  strip.style.display = 'block';
+
+  try {
+    var r    = await fetch('/api/airport-conditions?airportIata=' + encodeURIComponent(airport.iata));
+    var data = r.ok ? await r.json() : null;
+    if (data && data.weather && data.weather.flightCat) {
+      var wx   = data.weather;
+      var cat  = wx.flightCat;
+      var catColors = { VFR:'#22d3ee', MVFR:'#fbbf24', IFR:'#f97316', LIFR:'#ef4444' };
+      var col  = catColors[cat] || '#22d3ee';
+      var wspd = wx.windSpd || 0;
+      var windTxt = wspd === 0 ? 'Calm'
+                  : (wx.windDir || '') + ' ' + wspd + (wx.windGust ? 'G' + wx.windGust : '') + ' kts';
+      var visTxt  = (wx.visibility || 0) >= 10 ? '10+ SM' : (wx.visibility || 0) + ' SM';
+      grid.innerHTML =
+        '<div class="home-wx-stat"><span class="home-wx-label">Conditions</span>'
+        + '<span class="home-wx-val" style="color:' + col + ';">' + cat + '</span></div>'
+        + '<div class="home-wx-stat"><span class="home-wx-label">Visibility</span>'
+        + '<span class="home-wx-val">' + visTxt + '</span></div>'
+        + '<div class="home-wx-stat"><span class="home-wx-label">Wind</span>'
+        + '<span class="home-wx-val">' + windTxt + '</span></div>'
+        + '<div class="home-wx-stat"><span class="home-wx-label">Temp</span>'
+        + '<span class="home-wx-val">' + (wx.tempF || '--') + '</span></div>';
+
+      // Also update the conditions section label in departure view
+      var condLabel = document.querySelector('#conditionsSection .section-label');
+      if (condLabel) condLabel.textContent = '📍 ' + airport.city.split(',')[0] + ' Conditions';
+    } else {
+      strip.style.display = 'none';
+    }
+  } catch(e) {
+    strip.style.display = 'none';
+  }
 }
 
 function _autoDetectLocation() {
@@ -4458,6 +4657,7 @@ loadTerminals();
 var _initIata = document.getElementById('airportSelect').value || 'ATL';
 loadAirportConditions(_initIata);
 showView('home');
+_initHomeLocationBanner();
 </script>
 </body>
 </html>
