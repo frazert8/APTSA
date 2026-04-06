@@ -1059,34 +1059,9 @@
       </button>
     </div>
 
-    <!-- Home weather card: invite → live forecast -->
-    <div id="homeWeatherCard" class="home-wx-card">
-
-      <!-- Invite state: shown before location permission -->
-      <div id="homeWxInvite" class="home-wx-invite">
-        <div class="home-wx-invite-icon-wrap">
-          <div class="home-wx-invite-glow"></div>
-          <svg class="home-wx-invite-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <g class="sun-rays">
-              <line x1="50" y1="6"  x2="50" y2="19" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="50" y1="81" x2="50" y2="94" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="6"  y1="50" x2="19" y2="50" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="81" y1="50" x2="94" y2="50" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="16" y1="16" x2="26" y2="26" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="74" y1="74" x2="84" y2="84" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="84" y1="16" x2="74" y2="26" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-              <line x1="26" y1="74" x2="16" y2="84" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
-            </g>
-            <circle class="sun-core" cx="50" cy="50" r="22" fill="#22d3ee"/>
-          </svg>
-        </div>
-        <div class="home-wx-invite-title">Your Local Forecast</div>
-        <div class="home-wx-invite-sub">Live weather &amp; flight conditions at your nearest airport</div>
-        <button class="home-wx-invite-btn" id="homeWxInviteBtn" onclick="requestHomeLocation()">📍 Enable Location</button>
-      </div>
-
-      <!-- Weather display: revealed after data loads -->
-      <div id="homeWxDisplay" class="home-wx-display" style="display:none;">
+    <!-- Home weather card: hidden until location + data resolves -->
+    <div id="homeWeatherCard" class="home-wx-card" style="display:none;">
+      <div id="homeWxDisplay" class="home-wx-display">
         <div class="home-wx-bg"    id="homeWxBg"></div>
         <div class="home-wx-noise"></div>
         <div class="home-wx-content">
@@ -1109,7 +1084,6 @@
           <div class="home-wx-stats" id="homeWxStats"></div>
         </div>
       </div>
-
     </div>
 
   </div>
@@ -4485,37 +4459,27 @@ var _WX_THEMES = {
 
 function _initHomeLocationBanner() {
   if (userLocation) {
-    // Already resolved — render immediately
     _renderHomeWeather(nearestAirport(userLocation.lat, userLocation.lng));
     return;
   }
-  if (!navigator.geolocation) return; // No geolocation — invite card is shown as-is
+  if (!navigator.geolocation) return;
 
+  // Silently resolve if already granted; otherwise do nothing — no UI shown
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
-      if (result.state === 'granted') {
-        _resolveHomeLocation(false);
-      }
-      // 'prompt' or 'denied' — leave invite card visible as-is
-    }).catch(function() { /* silently ignore */ });
+      if (result.state === 'granted') _resolveHomeLocation();
+    }).catch(function() {});
   }
-  // No Permissions API → invite card stays visible; user clicks "Enable Location"
 }
 
-function requestHomeLocation() {
-  var btn = document.getElementById('homeWxInviteBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '📍 Locating…'; }
-  _resolveHomeLocation(true);
-}
+function requestHomeLocation() { _resolveHomeLocation(); }
 
-function _resolveHomeLocation(userInitiated) {
+function _resolveHomeLocation() {
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(
     function(pos) {
       userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       var airport  = nearestAirport(userLocation.lat, userLocation.lng);
-
-      // Pre-fill airport selects so mode pages are already set
       document.getElementById('airportSelect').value = airport.iata;
       var ts = document.getElementById('trackerAirportSelect');
       if (ts) ts.value = airport.iata;
@@ -4523,97 +4487,51 @@ function _resolveHomeLocation(userInitiated) {
       document.getElementById('locationBadge').classList.add('visible');
       var lb = document.getElementById('locationBtn');
       if (lb) lb.style.display = 'none';
-
       _renderHomeWeather(airport);
     },
-    function(err) {
-      var btn = document.getElementById('homeWxInviteBtn');
-      if (err.code === 1) {
-        // Permission denied — swap button for a gentle message, leave card visible
-        if (btn) {
-          var msg = document.createElement('span');
-          msg.className = 'home-wx-invite-denied';
-          msg.textContent = 'Location access denied — enter your airport manually below';
-          btn.replaceWith(msg);
-        }
-      } else {
-        if (btn) { btn.disabled = false; btn.textContent = '📍 Enable Location'; }
-      }
-    },
+    function() { /* denied or error — card stays hidden, no message */ },
     { timeout: 8000, maximumAge: 300000 }
   );
 }
 
 async function _renderHomeWeather(airport) {
-  var invite  = document.getElementById('homeWxInvite');
-  var display = document.getElementById('homeWxDisplay');
-  if (!invite || !display) return;
-
-  // Show display skeleton immediately
-  invite.style.display = 'none';
-  display.style.display = 'block';
-  document.getElementById('homeWxStats').innerHTML = [1,2,3,4].map(function() {
-    return '<div class="home-wx-stat">'
-      + '<div class="skeleton home-wx-stat-lbl" style="width:52px;height:7px;margin-bottom:6px;border-radius:3px;"></div>'
-      + '<div class="skeleton" style="width:64px;height:13px;border-radius:3px;"></div>'
-      + '</div>';
-  }).join('');
+  var card = document.getElementById('homeWeatherCard');
+  if (!card) return;
 
   try {
     var r    = await fetch('/api/airport-conditions?airportIata=' + encodeURIComponent(airport.iata));
     var data = r.ok ? await r.json() : null;
+    if (!data || !data.weather || !data.weather.flightCat) return; // keep card hidden
 
-    if (data && data.weather && data.weather.flightCat) {
-      var wx     = data.weather;
-      var cat    = wx.flightCat;
-      var theme  = _WX_THEMES[cat] || _WX_THEMES.VFR;
-      var wspd   = wx.windSpd || 0;
-      var windTx = wspd === 0 ? 'Calm' : (wx.windDir || '') + ' ' + wspd + (wx.windGust ? 'G' + wx.windGust : '') + ' kts';
-      var visTx  = (wx.visibility || 0) >= 10 ? '10+ SM' : (wx.visibility || 0) + ' SM';
-      var ceilTx = wx.ceiling == null ? 'Unlimited' : wx.ceiling.toLocaleString() + ' ft';
-      var cityName = airport.city.split(',')[0];
+    var wx     = data.weather;
+    var cat    = wx.flightCat;
+    var theme  = _WX_THEMES[cat] || _WX_THEMES.VFR;
+    var wspd   = wx.windSpd || 0;
+    var windTx = wspd === 0 ? 'Calm' : (wx.windDir || '') + ' ' + wspd + (wx.windGust ? 'G' + wx.windGust : '') + ' kts';
+    var visTx  = (wx.visibility || 0) >= 10 ? '10+ SM' : (wx.visibility || 0) + ' SM';
+    var ceilTx = wx.ceiling == null ? 'Unlimited' : wx.ceiling.toLocaleString() + ' ft';
+    var cityName = airport.city.split(',')[0];
 
-      // Apply gradient background + icon glow
-      document.getElementById('homeWxBg').style.background      = theme.bg;
-      document.getElementById('homeWxIconGlow').style.background = 'radial-gradient(circle,' + theme.glow + ' 0%,transparent 68%)';
+    document.getElementById('homeWxBg').style.background      = theme.bg;
+    document.getElementById('homeWxIconGlow').style.background = 'radial-gradient(circle,' + theme.glow + ' 0%,transparent 68%)';
+    document.getElementById('homeWxIcon').innerHTML            = _wxIconForConditions(cat, wx.phenomena);
+    document.getElementById('homeWxTemp').textContent         = wx.tempF || '--';
+    document.getElementById('homeWxCondition').textContent    = _wxConditionText(cat, wx.phenomena);
+    document.getElementById('homeWxCat').innerHTML            = '<span class="home-wx-cat-dot" style="background:' + theme.dot + ';"></span>' + cat;
+    document.getElementById('homeWxAirportLbl').textContent   = '📍 ' + cityName + ' · ' + airport.iata;
+    document.getElementById('homeWxStats').innerHTML =
+      '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Visibility</div><div class="home-wx-stat-val">' + visTx  + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Ceiling</div><div class="home-wx-stat-val">'    + ceilTx + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Wind</div><div class="home-wx-stat-val">'       + windTx + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Temp</div><div class="home-wx-stat-val">'       + (wx.tempF || '--') + '</div></div>';
 
-      // Icon
-      document.getElementById('homeWxIcon').innerHTML = _wxIconForConditions(cat, wx.phenomena);
+    var condLabel = document.querySelector('#conditionsSection .section-label');
+    if (condLabel) condLabel.textContent = '📍 ' + cityName + ' Conditions';
 
-      // Temperature
-      document.getElementById('homeWxTemp').textContent = wx.tempF || '--';
-
-      // Condition text
-      document.getElementById('homeWxCondition').textContent = _wxConditionText(cat, wx.phenomena);
-
-      // Cat badge
-      document.getElementById('homeWxCat').innerHTML =
-        '<span class="home-wx-cat-dot" style="background:' + theme.dot + ';"></span>' + cat;
-
-      // Airport label
-      document.getElementById('homeWxAirportLbl').textContent = '📍 ' + cityName + ' · ' + airport.iata;
-
-      // Stats
-      document.getElementById('homeWxStats').innerHTML =
-        '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Visibility</div><div class="home-wx-stat-val">' + visTx  + '</div></div>'
-        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Ceiling</div><div class="home-wx-stat-val">'    + ceilTx + '</div></div>'
-        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Wind</div><div class="home-wx-stat-val">'       + windTx + '</div></div>'
-        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Temp</div><div class="home-wx-stat-val">'       + (wx.tempF || '--') + '</div></div>';
-
-      // Update departure view conditions section header
-      var condLabel = document.querySelector('#conditionsSection .section-label');
-      if (condLabel) condLabel.textContent = '📍 ' + cityName + ' Conditions';
-
-    } else {
-      // No data — revert to invite state
-      invite.style.display  = 'flex';
-      display.style.display = 'none';
-    }
-  } catch(e) {
-    invite.style.display  = 'flex';
-    display.style.display = 'none';
-  }
+    card.style.display = 'block'; // reveal only when data is ready
+  } catch(e) { /* keep card hidden on error */ }
 }
+
 
 function _autoDetectLocation() {
   if (!navigator.geolocation) return;
