@@ -772,41 +772,130 @@
     .tracker-btn:hover { border-color:rgba(34,211,238,0.6); box-shadow:0 20px 60px rgba(34,211,238,0.12); }
     .tracker-btn .mode-btn-label { color:var(--safe); }
 
-    /* ══ HOME LOCATION BANNER ══════════════════════════════════════ */
-    .home-loc-banner {
-      margin-top: 20px; padding: 14px 18px; max-width: 560px; width: 100%;
-      background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.28);
-      border-radius: 16px; display: flex; align-items: center; gap: 14px;
-      animation: viewFadeIn 0.4s ease both;
-    }
-    .home-loc-icon { font-size: 26px; flex-shrink: 0; }
-    .home-loc-text { flex: 1; }
-    .home-loc-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-    .home-loc-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
-    .home-loc-allow {
-      flex-shrink: 0; padding: 10px 18px; border-radius: 12px;
-      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-      color: #fff; border: none; font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
-    }
-    .home-loc-allow:hover { opacity: 0.85; }
-    .home-loc-allow:disabled { opacity: 0.45; cursor: not-allowed; }
-    .home-loc-denied { font-size: 12px; color: var(--urgent); flex-shrink: 0; }
+    /* ══ HOME WEATHER CARD ════════════════════════════════════════ */
+    @keyframes wx-card-in  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes sun-spin    { to { transform: rotate(360deg); } }
+    @keyframes sun-pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.84;transform:scale(1.07)} }
+    @keyframes rain-drop   { 0%{transform:translateY(-6px);opacity:0} 45%{opacity:.9} 100%{transform:translateY(26px);opacity:0} }
+    @keyframes cloud-bob   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+    @keyframes fog-drift   { 0%,100%{transform:translateX(0);opacity:.65} 50%{transform:translateX(6px);opacity:.9} }
+    @keyframes bolt-flash  { 0%,80%,100%{opacity:0} 84%,96%{opacity:1} }
+    @keyframes snow-fall   { 0%{transform:translateY(-6px) rotate(0deg);opacity:0} 50%{opacity:.85} 100%{transform:translateY(26px) rotate(180deg);opacity:0} }
 
-    /* ══ HOME WEATHER STRIP ════════════════════════════════════════ */
-    .home-wx-strip {
-      margin-top: 16px; max-width: 560px; width: 100%;
-      padding: 16px 20px; border-radius: 18px;
-      background: var(--bg-card); border: 1px solid var(--border);
-      backdrop-filter: blur(20px); animation: viewFadeIn 0.4s ease both;
+    .home-wx-card {
+      margin-top: 22px; max-width: 560px; width: 100%;
+      border-radius: 26px; overflow: hidden; position: relative;
+      animation: wx-card-in 0.55s cubic-bezier(.22,1,.36,1) both;
+      border: 1px solid rgba(255,255,255,0.09);
+      box-shadow: 0 28px 70px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.04);
     }
-    .home-wx-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .home-wx-loc { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-    .home-wx-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
-    @media (max-width:480px) { .home-wx-grid { grid-template-columns: repeat(2,1fr); } }
-    .home-wx-stat { display: flex; flex-direction: column; gap: 2px; }
-    .home-wx-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-    .home-wx-val { font-size: 15px; font-weight: 700; color: var(--text); }
+
+    /* Invite state */
+    .home-wx-invite {
+      padding: 38px 28px 32px; text-align: center;
+      background: linear-gradient(160deg, #0c1c3a 0%, #081428 55%, #060e1c 100%);
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+    .home-wx-invite-icon-wrap {
+      position: relative; width: 80px; height: 80px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .home-wx-invite-glow {
+      position: absolute; inset: -14px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,211,238,.18) 0%, transparent 68%);
+      animation: sun-pulse 3s ease-in-out infinite;
+    }
+    .home-wx-invite-svg { width: 72px; height: 72px; opacity: .6; }
+    .home-wx-invite-title { font-size: 19px; font-weight: 800; letter-spacing: -.5px; color: #fff; margin-bottom: 7px; }
+    .home-wx-invite-sub   { font-size: 13px; color: rgba(180,195,230,.6); line-height: 1.55; margin-bottom: 24px; max-width: 280px; }
+    .home-wx-invite-btn {
+      padding: 13px 30px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(34,211,238,.16), rgba(59,130,246,.28));
+      border: 1px solid rgba(34,211,238,.38); color: #22d3ee;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: all .22s;
+      box-shadow: 0 0 22px rgba(34,211,238,.08);
+    }
+    .home-wx-invite-btn:hover { background: linear-gradient(135deg,rgba(34,211,238,.24),rgba(59,130,246,.38)); box-shadow:0 0 32px rgba(34,211,238,.18); transform:translateY(-1px); }
+    .home-wx-invite-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+    .home-wx-invite-denied { font-size: 12px; color: var(--urgent); margin-top: 12px; }
+
+    /* Weather display state */
+    .home-wx-display { position: relative; overflow: hidden; }
+    .home-wx-bg      { position: absolute; inset: 0; z-index: 0; transition: background 1.2s ease; }
+    .home-wx-noise   {
+      position: absolute; inset: 0; z-index: 1; opacity: .03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+    .home-wx-content { position: relative; z-index: 2; }
+
+    /* Top hero row */
+    .home-wx-top {
+      display: flex; align-items: center; gap: 18px; padding: 26px 26px 18px;
+    }
+    .home-wx-icon-wrap {
+      flex-shrink: 0; width: 84px; height: 84px; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .home-wx-icon-glow {
+      position: absolute; inset: -14px; border-radius: 50%;
+      transition: background 1.2s ease; pointer-events: none;
+    }
+    .home-wx-icon-svg { width: 80px; height: 80px; display: block; }
+    .home-wx-temp-col { flex: 1; min-width: 0; }
+    .home-wx-temp {
+      font-size: 54px; font-weight: 800; letter-spacing: -2.5px; line-height: 1;
+      color: #fff; margin-bottom: 5px;
+    }
+    .home-wx-condition { font-size: 14px; font-weight: 600; color: rgba(255,255,255,.72); margin-bottom: 9px; }
+    .home-wx-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .home-wx-cat-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 99px;
+      border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.88);
+      background: rgba(255,255,255,.09);
+    }
+    .home-wx-cat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .home-wx-airport-lbl { font-size: 11px; color: rgba(255,255,255,.42); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .home-wx-live-badge {
+      margin-left: auto; align-self: flex-start; flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55);
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 99px; padding: 3px 9px;
+    }
+    .home-wx-live-dot {
+      width: 5px; height: 5px; border-radius: 50%; background: #22d3ee;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* Divider + stats */
+    .home-wx-rule { height:1px; margin: 0 26px; background: rgba(255,255,255,.07); }
+    .home-wx-stats {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      padding: 14px 18px 20px; gap: 6px;
+    }
+    @media (max-width:480px) { .home-wx-stats { grid-template-columns: repeat(2,1fr); } }
+    .home-wx-stat { padding: 10px 8px; border-radius: 12px; background: rgba(255,255,255,.04); text-align: center; }
+    .home-wx-stat-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.38); margin-bottom: 5px; }
+    .home-wx-stat-val { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.88); }
+
+    /* SVG animation classes */
+    .sun-rays  { transform-origin: 50px 50px; animation: sun-spin 14s linear infinite; }
+    .sun-core  { animation: sun-pulse 3.5s ease-in-out infinite; transform-origin: 50px 50px; }
+    .cloud-main { animation: cloud-bob 4.5s ease-in-out infinite; transform-origin: 50px 50px; }
+    .rain-d1 { animation: rain-drop 1.5s ease-in infinite; }
+    .rain-d2 { animation: rain-drop 1.5s ease-in infinite .28s; }
+    .rain-d3 { animation: rain-drop 1.5s ease-in infinite .55s; }
+    .rain-d4 { animation: rain-drop 1.5s ease-in infinite .82s; }
+    .snow-d1 { animation: snow-fall 2.2s ease-in infinite; }
+    .snow-d2 { animation: snow-fall 2.2s ease-in infinite .5s; }
+    .snow-d3 { animation: snow-fall 2.2s ease-in infinite 1s; }
+    .fog-l1  { animation: fog-drift 3.2s ease-in-out infinite; }
+    .fog-l2  { animation: fog-drift 3.2s ease-in-out infinite .9s; }
+    .fog-l3  { animation: fog-drift 3.2s ease-in-out infinite 1.8s; }
+    .bolt    { animation: bolt-flash 3.5s ease-in-out infinite; }
 
     /* ══ LOCATION VIEW ════════════════════════════════════════════ */
     .loc-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 20px; text-align:center; }
@@ -970,23 +1059,57 @@
       </button>
     </div>
 
-    <!-- Location permission banner — shown until granted or denied -->
-    <div id="homeLocBanner" class="home-loc-banner" style="display:none;">
-      <span class="home-loc-icon">📍</span>
-      <div class="home-loc-text">
-        <div class="home-loc-title">Share your location</div>
-        <div class="home-loc-sub">Get live weather &amp; conditions for your nearest airport</div>
-      </div>
-      <button class="home-loc-allow" id="homeLocAllowBtn" onclick="requestHomeLocation()">Allow Location</button>
-    </div>
+    <!-- Home weather card: invite → live forecast -->
+    <div id="homeWeatherCard" class="home-wx-card">
 
-    <!-- Mini weather strip — revealed after location granted -->
-    <div id="homeWxStrip" class="home-wx-strip" style="display:none;">
-      <div class="home-wx-header">
-        <span class="live-pill" style="font-size:10px;">Live</span>
-        <span id="homeWxLocLabel" class="home-wx-loc"></span>
+      <!-- Invite state: shown before location permission -->
+      <div id="homeWxInvite" class="home-wx-invite">
+        <div class="home-wx-invite-icon-wrap">
+          <div class="home-wx-invite-glow"></div>
+          <svg class="home-wx-invite-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <g class="sun-rays">
+              <line x1="50" y1="6"  x2="50" y2="19" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="50" y1="81" x2="50" y2="94" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="6"  y1="50" x2="19" y2="50" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="81" y1="50" x2="94" y2="50" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="16" y1="16" x2="26" y2="26" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="74" y1="74" x2="84" y2="84" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="84" y1="16" x2="74" y2="26" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="26" y1="74" x2="16" y2="84" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round"/>
+            </g>
+            <circle class="sun-core" cx="50" cy="50" r="22" fill="#22d3ee"/>
+          </svg>
+        </div>
+        <div class="home-wx-invite-title">Your Local Forecast</div>
+        <div class="home-wx-invite-sub">Live weather &amp; flight conditions at your nearest airport</div>
+        <button class="home-wx-invite-btn" id="homeWxInviteBtn" onclick="requestHomeLocation()">📍 Enable Location</button>
       </div>
-      <div id="homeWxGrid" class="home-wx-grid"></div>
+
+      <!-- Weather display: revealed after data loads -->
+      <div id="homeWxDisplay" class="home-wx-display" style="display:none;">
+        <div class="home-wx-bg"    id="homeWxBg"></div>
+        <div class="home-wx-noise"></div>
+        <div class="home-wx-content">
+          <div class="home-wx-top">
+            <div class="home-wx-icon-wrap">
+              <div class="home-wx-icon-glow" id="homeWxIconGlow"></div>
+              <div id="homeWxIcon"></div>
+            </div>
+            <div class="home-wx-temp-col">
+              <div class="home-wx-temp"      id="homeWxTemp"></div>
+              <div class="home-wx-condition" id="homeWxCondition"></div>
+              <div class="home-wx-meta">
+                <span class="home-wx-cat-badge" id="homeWxCat"></span>
+                <span class="home-wx-airport-lbl" id="homeWxAirportLbl"></span>
+              </div>
+            </div>
+            <div class="home-wx-live-badge"><div class="home-wx-live-dot"></div>Live</div>
+          </div>
+          <div class="home-wx-rule"></div>
+          <div class="home-wx-stats" id="homeWxStats"></div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -4239,42 +4362,148 @@ function pickMode(mode) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// HOME SCREEN LOCATION + WEATHER
+// HOME SCREEN LOCATION + WEATHER CARD
 // ════════════════════════════════════════════════════════════════
 
+// ── Weather icon SVG builders ────────────────────────────────
+
+function _wxIconSun() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    + '<g class="sun-rays">'
+    + '<line x1="50" y1="5"  x2="50" y2="18" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="50" y1="82" x2="50" y2="95" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="5"  y1="50" x2="18" y2="50" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="82" y1="50" x2="95" y2="50" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="16" y1="16" x2="25" y2="25" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="75" y1="75" x2="84" y2="84" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="84" y1="16" x2="75" y2="25" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '<line x1="25" y1="75" x2="16" y2="84" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>'
+    + '</g>'
+    + '<circle class="sun-core" cx="50" cy="50" r="23" fill="#fbbf24"/>'
+    + '</svg>';
+}
+
+function _wxIconPartlyCloudy() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    // Background sun (smaller, shifted up-left)
+    + '<g transform="translate(-6,-6) scale(0.72)">'
+    + '<g class="sun-rays" style="animation-duration:18s">'
+    + '<line x1="50" y1="5"  x2="50" y2="18" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="50" y1="82" x2="50" y2="95" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="5"  y1="50" x2="18" y2="50" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="82" y1="50" x2="95" y2="50" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="16" y1="16" x2="26" y2="26" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="74" y1="74" x2="84" y2="84" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="84" y1="16" x2="74" y2="26" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '<line x1="26" y1="74" x2="16" y2="84" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round"/>'
+    + '</g>'
+    + '<circle cx="50" cy="50" r="22" fill="#fbbf24" opacity=".9"/>'
+    + '</g>'
+    // Cloud in front
+    + '<g class="cloud-main">'
+    + '<ellipse cx="58" cy="65" rx="28" ry="15" fill="#94a3b8"/>'
+    + '<circle  cx="44" cy="62" r="14"           fill="#94a3b8"/>'
+    + '<circle  cx="65" cy="57" r="11"           fill="#94a3b8"/>'
+    + '</g>'
+    + '</svg>';
+}
+
+function _wxIconRain() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    + '<g class="cloud-main">'
+    + '<ellipse cx="52" cy="42" rx="28" ry="15" fill="#64748b"/>'
+    + '<circle  cx="38" cy="40" r="14"           fill="#64748b"/>'
+    + '<circle  cx="59" cy="35" r="11"           fill="#64748b"/>'
+    + '</g>'
+    + '<line class="rain-d1" x1="34" y1="61" x2="30" y2="77" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round"/>'
+    + '<line class="rain-d2" x1="45" y1="61" x2="41" y2="77" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round"/>'
+    + '<line class="rain-d3" x1="56" y1="61" x2="52" y2="77" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round"/>'
+    + '<line class="rain-d4" x1="67" y1="61" x2="63" y2="77" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round"/>'
+    + '</svg>';
+}
+
+function _wxIconFog() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    + '<line class="fog-l1" x1="12" y1="32" x2="88" y2="32" stroke="#94a3b8" stroke-width="5.5" stroke-linecap="round"/>'
+    + '<line class="fog-l2" x1="20" y1="50" x2="80" y2="50" stroke="#94a3b8" stroke-width="5.5" stroke-linecap="round"/>'
+    + '<line class="fog-l3" x1="15" y1="68" x2="85" y2="68" stroke="#94a3b8" stroke-width="5.5" stroke-linecap="round"/>'
+    + '</svg>';
+}
+
+function _wxIconStorm() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    + '<g class="cloud-main">'
+    + '<ellipse cx="50" cy="38" rx="30" ry="17" fill="#374151"/>'
+    + '<circle  cx="35" cy="36" r="15"           fill="#374151"/>'
+    + '<circle  cx="58" cy="32" r="12"           fill="#374151"/>'
+    + '</g>'
+    + '<path class="bolt" d="M 54,56 L 42,74 L 51,74 L 46,88 L 64,68 L 54,68 Z" fill="#fbbf24"/>'
+    + '</svg>';
+}
+
+function _wxIconSnow() {
+  return '<svg class="home-wx-icon-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'
+    + '<g class="cloud-main">'
+    + '<ellipse cx="52" cy="40" rx="28" ry="15" fill="#94a3b8"/>'
+    + '<circle  cx="38" cy="38" r="13"           fill="#94a3b8"/>'
+    + '<circle  cx="58" cy="33" r="10"           fill="#94a3b8"/>'
+    + '</g>'
+    + '<text class="snow-d1" x="32" y="68" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="sans-serif">❄</text>'
+    + '<text class="snow-d2" x="52" y="72" font-size="13" fill="#bfdbfe" text-anchor="middle" font-family="sans-serif">❄</text>'
+    + '<text class="snow-d3" x="70" y="67" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="sans-serif">❄</text>'
+    + '</svg>';
+}
+
+function _wxIconForConditions(cat, phenomena) {
+  var labels = (phenomena || []).map(function(p) { return p.label.toLowerCase(); });
+  var hasRain  = labels.some(function(l) { return /rain|drizzle|shower/.test(l); });
+  var hasFog   = labels.some(function(l) { return /fog|mist|haze/.test(l); });
+  var hasSnow  = labels.some(function(l) { return /snow|sleet|ice/.test(l); });
+  var hasStorm = labels.some(function(l) { return /thunder|storm/.test(l); });
+  var hasCloud = labels.some(function(l) { return /cloud|overcast/.test(l); });
+  if (cat === 'LIFR' || hasStorm)          return _wxIconStorm();
+  if (hasSnow)                             return _wxIconSnow();
+  if (hasRain || (cat === 'IFR' && !hasFog)) return _wxIconRain();
+  if (hasFog)                              return _wxIconFog();
+  if (cat === 'MVFR' || hasCloud)          return _wxIconPartlyCloudy();
+  return _wxIconSun();
+}
+
+function _wxConditionText(cat, phenomena) {
+  if (phenomena && phenomena.length) return phenomena.slice(0, 2).map(function(p) { return p.label; }).join(', ');
+  return { VFR:'Clear', MVFR:'Partly Cloudy', IFR:'Low Ceiling', LIFR:'Severe IFR' }[cat] || 'Fair';
+}
+
+var _WX_THEMES = {
+  VFR:  { bg:'linear-gradient(155deg,#061830 0%,#0a2244 50%,#0d2c5c 100%)', glow:'rgba(251,191,36,.22)',  dot:'#22d3ee' },
+  MVFR: { bg:'linear-gradient(155deg,#0d1530 0%,#1c243e 50%,#263052 100%)', glow:'rgba(251,191,36,.18)',  dot:'#fbbf24' },
+  IFR:  { bg:'linear-gradient(155deg,#09101e 0%,#131924 50%,#1c2132 100%)', glow:'rgba(100,116,139,.22)', dot:'#f97316' },
+  LIFR: { bg:'linear-gradient(155deg,#0f0814 0%,#1a0f1e 50%,#200a1a 100%)', glow:'rgba(239,68,68,.18)',   dot:'#ef4444' },
+};
+
+// ── Card state machine ──────────────────────────────────────
+
 function _initHomeLocationBanner() {
-  // If location already resolved, show weather strip directly
   if (userLocation) {
-    var airport = nearestAirport(userLocation.lat, userLocation.lng);
-    _renderHomeWeather(airport);
+    // Already resolved — render immediately
+    _renderHomeWeather(nearestAirport(userLocation.lat, userLocation.lng));
     return;
   }
-  var banner = document.getElementById('homeLocBanner');
-  if (!banner || !navigator.geolocation) return;
+  if (!navigator.geolocation) return; // No geolocation — invite card is shown as-is
 
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
       if (result.state === 'granted') {
-        // Already granted — silently resolve and show weather
         _resolveHomeLocation(false);
-      } else if (result.state === 'denied') {
-        // Don't annoy user with a banner they can't act on
-        banner.style.display = 'none';
-      } else {
-        // 'prompt' — show the banner with an explicit Allow button
-        banner.style.display = 'flex';
       }
-    }).catch(function() {
-      banner.style.display = 'flex';
-    });
-  } else {
-    // No Permissions API (old browser / Safari) — show banner
-    banner.style.display = 'flex';
+      // 'prompt' or 'denied' — leave invite card visible as-is
+    }).catch(function() { /* silently ignore */ });
   }
+  // No Permissions API → invite card stays visible; user clicks "Enable Location"
 }
 
 function requestHomeLocation() {
-  var btn = document.getElementById('homeLocAllowBtn');
+  var btn = document.getElementById('homeWxInviteBtn');
   if (btn) { btn.disabled = true; btn.textContent = '📍 Locating…'; }
   _resolveHomeLocation(true);
 }
@@ -4286,11 +4515,7 @@ function _resolveHomeLocation(userInitiated) {
       userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       var airport  = nearestAirport(userLocation.lat, userLocation.lng);
 
-      // Hide banner
-      var banner = document.getElementById('homeLocBanner');
-      if (banner) banner.style.display = 'none';
-
-      // Pre-fill airport selects so mode pages are ready
+      // Pre-fill airport selects so mode pages are already set
       document.getElementById('airportSelect').value = airport.iata;
       var ts = document.getElementById('trackerAirportSelect');
       if (ts) ts.value = airport.iata;
@@ -4302,20 +4527,17 @@ function _resolveHomeLocation(userInitiated) {
       _renderHomeWeather(airport);
     },
     function(err) {
-      var btn = document.getElementById('homeLocAllowBtn');
-      var banner = document.getElementById('homeLocBanner');
+      var btn = document.getElementById('homeWxInviteBtn');
       if (err.code === 1) {
-        // Denied — replace button with message
-        if (banner) {
-          var deny = document.createElement('span');
-          deny.className = 'home-loc-denied';
-          deny.textContent = 'Location denied';
-          if (btn) btn.replaceWith(deny);
-          // Auto-hide after 3 s
-          setTimeout(function() { banner.style.display = 'none'; }, 3000);
+        // Permission denied — swap button for a gentle message, leave card visible
+        if (btn) {
+          var msg = document.createElement('span');
+          msg.className = 'home-wx-invite-denied';
+          msg.textContent = 'Location access denied — enter your airport manually below';
+          btn.replaceWith(msg);
         }
       } else {
-        if (btn) { btn.disabled = false; btn.textContent = 'Allow Location'; }
+        if (btn) { btn.disabled = false; btn.textContent = '📍 Enable Location'; }
       }
     },
     { timeout: 8000, maximumAge: 300000 }
@@ -4323,50 +4545,73 @@ function _resolveHomeLocation(userInitiated) {
 }
 
 async function _renderHomeWeather(airport) {
-  var strip = document.getElementById('homeWxStrip');
-  var locEl = document.getElementById('homeWxLocLabel');
-  var grid  = document.getElementById('homeWxGrid');
-  if (!strip || !grid) return;
+  var invite  = document.getElementById('homeWxInvite');
+  var display = document.getElementById('homeWxDisplay');
+  if (!invite || !display) return;
 
-  locEl.textContent = '📍 ' + airport.city.split(',')[0] + ' (' + airport.iata + ')';
-  grid.innerHTML = [80,60,70,50].map(function(w) {
+  // Show display skeleton immediately
+  invite.style.display = 'none';
+  display.style.display = 'block';
+  document.getElementById('homeWxStats').innerHTML = [1,2,3,4].map(function() {
     return '<div class="home-wx-stat">'
-      + '<div class="skeleton home-wx-label" style="width:' + w + 'px;height:8px;margin-bottom:4px;border-radius:3px;"></div>'
-      + '<div class="skeleton" style="width:' + (w+10) + 'px;height:14px;border-radius:3px;"></div>'
+      + '<div class="skeleton home-wx-stat-lbl" style="width:52px;height:7px;margin-bottom:6px;border-radius:3px;"></div>'
+      + '<div class="skeleton" style="width:64px;height:13px;border-radius:3px;"></div>'
       + '</div>';
   }).join('');
-  strip.style.display = 'block';
 
   try {
     var r    = await fetch('/api/airport-conditions?airportIata=' + encodeURIComponent(airport.iata));
     var data = r.ok ? await r.json() : null;
-    if (data && data.weather && data.weather.flightCat) {
-      var wx   = data.weather;
-      var cat  = wx.flightCat;
-      var catColors = { VFR:'#22d3ee', MVFR:'#fbbf24', IFR:'#f97316', LIFR:'#ef4444' };
-      var col  = catColors[cat] || '#22d3ee';
-      var wspd = wx.windSpd || 0;
-      var windTxt = wspd === 0 ? 'Calm'
-                  : (wx.windDir || '') + ' ' + wspd + (wx.windGust ? 'G' + wx.windGust : '') + ' kts';
-      var visTxt  = (wx.visibility || 0) >= 10 ? '10+ SM' : (wx.visibility || 0) + ' SM';
-      grid.innerHTML =
-        '<div class="home-wx-stat"><span class="home-wx-label">Conditions</span>'
-        + '<span class="home-wx-val" style="color:' + col + ';">' + cat + '</span></div>'
-        + '<div class="home-wx-stat"><span class="home-wx-label">Visibility</span>'
-        + '<span class="home-wx-val">' + visTxt + '</span></div>'
-        + '<div class="home-wx-stat"><span class="home-wx-label">Wind</span>'
-        + '<span class="home-wx-val">' + windTxt + '</span></div>'
-        + '<div class="home-wx-stat"><span class="home-wx-label">Temp</span>'
-        + '<span class="home-wx-val">' + (wx.tempF || '--') + '</span></div>';
 
-      // Also update the conditions section label in departure view
+    if (data && data.weather && data.weather.flightCat) {
+      var wx     = data.weather;
+      var cat    = wx.flightCat;
+      var theme  = _WX_THEMES[cat] || _WX_THEMES.VFR;
+      var wspd   = wx.windSpd || 0;
+      var windTx = wspd === 0 ? 'Calm' : (wx.windDir || '') + ' ' + wspd + (wx.windGust ? 'G' + wx.windGust : '') + ' kts';
+      var visTx  = (wx.visibility || 0) >= 10 ? '10+ SM' : (wx.visibility || 0) + ' SM';
+      var ceilTx = wx.ceiling == null ? 'Unlimited' : wx.ceiling.toLocaleString() + ' ft';
+      var cityName = airport.city.split(',')[0];
+
+      // Apply gradient background + icon glow
+      document.getElementById('homeWxBg').style.background      = theme.bg;
+      document.getElementById('homeWxIconGlow').style.background = 'radial-gradient(circle,' + theme.glow + ' 0%,transparent 68%)';
+
+      // Icon
+      document.getElementById('homeWxIcon').innerHTML = _wxIconForConditions(cat, wx.phenomena);
+
+      // Temperature
+      document.getElementById('homeWxTemp').textContent = wx.tempF || '--';
+
+      // Condition text
+      document.getElementById('homeWxCondition').textContent = _wxConditionText(cat, wx.phenomena);
+
+      // Cat badge
+      document.getElementById('homeWxCat').innerHTML =
+        '<span class="home-wx-cat-dot" style="background:' + theme.dot + ';"></span>' + cat;
+
+      // Airport label
+      document.getElementById('homeWxAirportLbl').textContent = '📍 ' + cityName + ' · ' + airport.iata;
+
+      // Stats
+      document.getElementById('homeWxStats').innerHTML =
+        '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Visibility</div><div class="home-wx-stat-val">' + visTx  + '</div></div>'
+        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Ceiling</div><div class="home-wx-stat-val">'    + ceilTx + '</div></div>'
+        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Wind</div><div class="home-wx-stat-val">'       + windTx + '</div></div>'
+        + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Temp</div><div class="home-wx-stat-val">'       + (wx.tempF || '--') + '</div></div>';
+
+      // Update departure view conditions section header
       var condLabel = document.querySelector('#conditionsSection .section-label');
-      if (condLabel) condLabel.textContent = '📍 ' + airport.city.split(',')[0] + ' Conditions';
+      if (condLabel) condLabel.textContent = '📍 ' + cityName + ' Conditions';
+
     } else {
-      strip.style.display = 'none';
+      // No data — revert to invite state
+      invite.style.display  = 'flex';
+      display.style.display = 'none';
     }
   } catch(e) {
-    strip.style.display = 'none';
+    invite.style.display  = 'flex';
+    display.style.display = 'none';
   }
 }
 
