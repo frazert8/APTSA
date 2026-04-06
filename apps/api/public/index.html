@@ -1130,15 +1130,35 @@
       <span class="live-pill" id="liveIndicator">Live</span>
     </div>
 
-    <!-- Airport Conditions — Weather + FAA Status -->
-    <section class="conditions-section" id="conditionsSection" style="display:none;">
-      <div class="section-header" style="margin-bottom:10px;">
-        <span class="section-label">Airport Conditions</span>
-        <span class="live-pill" id="conditionsLivePill">Live</span>
+    <!-- Airport Conditions — first panel, weather card style -->
+    <section id="conditionsSection" style="display:none; margin-bottom:22px;">
+      <div class="home-wx-card" id="depWxCard">
+        <div class="home-wx-display">
+          <div class="home-wx-bg"    id="depWxBg"></div>
+          <div class="home-wx-noise"></div>
+          <div class="home-wx-content">
+            <div class="home-wx-top">
+              <div class="home-wx-icon-wrap">
+                <div class="home-wx-icon-glow" id="depWxIconGlow"></div>
+                <div id="depWxIcon"></div>
+              </div>
+              <div class="home-wx-temp-col">
+                <div class="home-wx-temp"      id="depWxTemp"></div>
+                <div class="home-wx-condition" id="depWxCondition"></div>
+                <div class="home-wx-meta">
+                  <span class="home-wx-cat-badge" id="depWxCat"></span>
+                  <span class="home-wx-airport-lbl" id="depWxAirportLbl"></span>
+                </div>
+              </div>
+              <div class="home-wx-live-badge"><div class="home-wx-live-dot"></div>Live</div>
+            </div>
+            <div class="home-wx-rule"></div>
+            <div class="home-wx-stats" id="depWxStats"></div>
+          </div>
+        </div>
       </div>
-      <div class="glass conditions-card" id="conditionsCard">
-        <!-- populated by loadAirportConditions() -->
-      </div>
+      <!-- FAA ground programs shown below card when active -->
+      <div id="depFaaPrograms"></div>
     </section>
 
     <!-- Gate Zero™ -->
@@ -4639,166 +4659,97 @@ function closeLeaveModalBtn() {
   };
 })();
 // ════════════════════════════════════════════════════════════════
-// AIRPORT CONDITIONS — Weather + FAA Status
+// AIRPORT CONDITIONS — departure view weather card
 // ════════════════════════════════════════════════════════════════
-(function() {
-  var _conditionsRefreshTimer = null;
+var _conditionsRefreshTimer = null;
 
-  // Flight category → display config
-  var CAT_CONFIG = {
-    VFR:  { dot: '#22d3ee', label: 'VFR',  desc: 'Visual Flight Rules — clear conditions'              },
-    MVFR: { dot: '#fbbf24', label: 'MVFR', desc: 'Marginal VFR — reduced visibility or ceiling'        },
-    IFR:  { dot: '#f97316', label: 'IFR',  desc: 'Instrument Flight Rules — low ceilings / visibility' },
-    LIFR: { dot: '#ef4444', label: 'LIFR', desc: 'Low IFR — severe restriction, possible diversions'   },
-  };
+var _FAA_ICONS = {
+  ground_delay:'⏳', ground_stop:'🛑', arrival_delay:'🔽',
+  departure_delay:'🔼', closure:'🚫', airspace_flow:'⚠️',
+};
 
-  var FAA_ICONS = {
-    ground_delay:   '⏳',
-    ground_stop:    '🛑',
-    arrival_delay:  '🔽',
-    departure_delay:'🔼',
-    closure:        '🚫',
-    airspace_flow:  '⚠️',
-  };
+function _renderDepConditions(iata, weather, faaStatus) {
+  var section = document.getElementById('conditionsSection');
+  if (!section) return;
 
-  function visibStr(sm) {
-    if (sm >= 10) return '10+ SM';
-    if (sm < 1)   return (Math.round(sm * 4) / 4).toFixed(2) + ' SM';
-    return sm + ' SM';
+  var hasContent = false;
+
+  if (weather && weather.flightCat) {
+    hasContent = true;
+    var cat    = weather.flightCat;
+    var theme  = _WX_THEMES[cat] || _WX_THEMES.VFR;
+    var wspd   = weather.windSpd || 0;
+    var windTx = wspd === 0 ? 'Calm'
+               : (weather.windDir || '') + ' ' + wspd + (weather.windGust ? 'G' + weather.windGust : '') + ' kts';
+    var visTx  = (weather.visibility || 0) >= 10 ? '10+ SM'
+               : (weather.visibility || 0) < 1
+                 ? (Math.round((weather.visibility || 0) * 4) / 4).toFixed(2) + ' SM'
+                 : (weather.visibility || 0) + ' SM';
+    var ceilTx = weather.ceiling == null ? 'Unlimited'
+               : weather.ceiling >= 10000 ? '10,000+ ft'
+               : weather.ceiling.toLocaleString() + ' ft';
+    var airport  = getAirport(iata);
+    var cityName = airport ? airport.city.split(',')[0] : iata;
+
+    document.getElementById('depWxBg').style.background        = theme.bg;
+    document.getElementById('depWxIconGlow').style.background  = 'radial-gradient(circle,' + theme.glow + ' 0%,transparent 68%)';
+    document.getElementById('depWxIcon').innerHTML             = _wxIconForConditions(cat, weather.phenomena);
+    document.getElementById('depWxTemp').textContent           = weather.tempF || '--';
+    document.getElementById('depWxCondition').textContent      = _wxConditionText(cat, weather.phenomena);
+    document.getElementById('depWxCat').innerHTML              = '<span class="home-wx-cat-dot" style="background:' + theme.dot + ';"></span>' + cat;
+    document.getElementById('depWxAirportLbl').textContent     = '📍 ' + cityName + ' · ' + iata;
+    document.getElementById('depWxStats').innerHTML =
+        '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Visibility</div><div class="home-wx-stat-val">' + visTx  + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Ceiling</div><div class="home-wx-stat-val">'    + ceilTx + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Wind</div><div class="home-wx-stat-val">'       + windTx + '</div></div>'
+      + '<div class="home-wx-stat"><div class="home-wx-stat-lbl">Temp</div><div class="home-wx-stat-val">'       + (weather.tempF || '--') + '</div></div>';
   }
 
-  function ceilStr(ft) {
-    if (ft == null) return 'Unrestricted';
-    if (ft >= 10000) return '10,000+ ft';
-    return ft.toLocaleString() + ' ft';
-  }
-
-  function renderConditions(weather, faaStatus) {
-    var section = document.getElementById('conditionsSection');
-    var card    = document.getElementById('conditionsCard');
-    if (!section || !card) return;
-
-    var html = '';
-    var hasContent = false;
-
-    // ── Weather section ────────────────────────────────────
-    if (weather && weather.flightCat) {
-      hasContent = true;
-      var cat    = weather.flightCat;
-      var cfg    = CAT_CONFIG[cat] || CAT_CONFIG['VFR'];
-      var wspd   = weather.windSpd || 0;
-      var wgst   = weather.windGust;
-      var windTxt = wspd === 0 ? 'Calm'
-                  : weather.windDir + ' ' + wspd + (wgst ? 'G' + wgst : '') + ' kts';
-
-      // Row 1: flight cat badge + phenomena chips
-      html += '<div class="conditions-row">';
-      html += '<span class="flt-cat ' + cat + '" title="' + cfg.desc + '">'
-            +   '<span class="flt-cat-dot" style="background:' + cfg.dot + ';"></span>'
-            +   cfg.label
-            + '</span>';
-      if (weather.isSpeci) html += '<span class="speci-badge">SPECI</span>';
-      if (weather.phenomena && weather.phenomena.length) {
-        html += '<div class="cond-chips">';
-        weather.phenomena.forEach(function(p) {
-          html += '<span class="cond-chip ' + p.severity + '">' + esc(p.label) + '</span>';
-        });
-        html += '</div>';
-      }
-      html += '</div>';
-
-      // Row 2: stats grid
-      html += '<div class="cond-stats">'
-            +   '<div class="cond-stat"><span class="cond-stat-label">Visibility</span>'
-            +     '<span class="cond-stat-val">' + visibStr(weather.visibility) + '</span></div>'
-            +   '<div class="cond-stat"><span class="cond-stat-label">Ceiling</span>'
-            +     '<span class="cond-stat-val">' + ceilStr(weather.ceiling) + '</span></div>'
-            +   '<div class="cond-stat"><span class="cond-stat-label">Wind</span>'
-            +     '<span class="cond-stat-val">' + esc(windTxt) + '</span></div>'
-            +   '<div class="cond-stat"><span class="cond-stat-label">Temperature</span>'
-            +     '<span class="cond-stat-val">' + esc(weather.tempF) + '</span></div>'
-            + '</div>';
-
-      // Row 3: delay risk factors (only if risk > low)
-      if (weather.delayRisk && weather.delayRisk.factors && weather.delayRisk.factors.length) {
-        var sev = weather.delayRisk.risk === 'high' ? 'crit' : 'warn';
-        html += '<div class="cond-factors">';
-        weather.delayRisk.factors.forEach(function(f) {
-          html += '<span class="cond-factor ' + sev + '">⚠ ' + esc(f) + '</span>';
-        });
-        html += '</div>';
-      }
-
-      // Raw METAR — always shown; useful for experienced travelers
-      html += '<div>'
-            +   '<div class="cond-metar-label">Raw METAR</div>'
-            +   '<div class="cond-metar">' + esc(weather.rawMetar) + '</div>'
-            + '</div>';
-    }
-
-    // ── FAA programs ───────────────────────────────────────
+  // FAA ground programs below the card
+  var faaEl = document.getElementById('depFaaPrograms');
+  if (faaEl) {
     if (faaStatus && faaStatus.programs && faaStatus.programs.length) {
       hasContent = true;
-      faaStatus.programs.forEach(function(p) {
-        var icon = FAA_ICONS[p.type] || '⚠️';
-        html += '<div class="faa-program ' + p.severity + '">'
-              +   '<span class="faa-program-icon">' + icon + '</span>'
-              +   '<div class="faa-program-body">'
-              +     '<div class="faa-program-head">' + esc(p.headline) + '</div>'
-              +     '<div class="faa-program-detail">' + esc(p.detail) + '</div>'
-              +     (p.trend ? '<div class="faa-program-trend ' + esc(p.trend) + '">Trend: ' + esc(p.trend) + '</div>' : '')
-              +   '</div>'
-              + '</div>';
-      });
-    }
-
-    if (hasContent) {
-      card.innerHTML = html;
-      section.style.display = 'block';
+      faaEl.innerHTML = faaStatus.programs.map(function(p) {
+        var icon = _FAA_ICONS[p.type] || '⚠️';
+        return '<div class="faa-program ' + p.severity + '" style="margin-top:8px;">'
+          + '<span class="faa-program-icon">' + icon + '</span>'
+          + '<div class="faa-program-body">'
+          + '<div class="faa-program-head">'   + esc(p.headline) + '</div>'
+          + '<div class="faa-program-detail">' + esc(p.detail)   + '</div>'
+          + (p.trend ? '<div class="faa-program-trend ' + esc(p.trend) + '">Trend: ' + esc(p.trend) + '</div>' : '')
+          + '</div></div>';
+      }).join('');
     } else {
-      section.style.display = 'none';
+      faaEl.innerHTML = '';
     }
   }
 
-  window.loadAirportConditions = async function loadAirportConditions(iata) {
-    var section = document.getElementById('conditionsSection');
-    var card    = document.getElementById('conditionsCard');
-    if (!section || !card) return;
+  section.style.display = hasContent ? 'block' : 'none';
+}
 
-    // Clear any previous refresh timer
-    if (_conditionsRefreshTimer) { clearInterval(_conditionsRefreshTimer); _conditionsRefreshTimer = null; }
+window.loadAirportConditions = async function loadAirportConditions(iata) {
+  var section = document.getElementById('conditionsSection');
+  if (!section) return;
+  if (_conditionsRefreshTimer) { clearInterval(_conditionsRefreshTimer); _conditionsRefreshTimer = null; }
 
-    // Show skeleton while loading
-    card.innerHTML = '<div class="cond-stats">'
-      + [80, 60, 70, 50].map(function(w) {
-          return '<div class="cond-stat"><div class="skeleton sk-txt" style="width:' + w + 'px;height:10px;margin-bottom:4px;"></div>'
-               + '<div class="skeleton sk-txt" style="width:' + (w + 20) + 'px;height:16px;"></div></div>';
-        }).join('')
-      + '</div>';
-    section.style.display = 'block';
+  var encoded = encodeURIComponent(iata);
+  try {
+    var r    = await fetch('/api/airport-conditions?airportIata=' + encoded);
+    var data = r.ok ? await r.json() : null;
+    if (data) _renderDepConditions(iata, data.weather, data.faaStatus);
+    else section.style.display = 'none';
+  } catch(e) {
+    section.style.display = 'none';
+  }
 
-    var encoded = encodeURIComponent(iata);
-    var data;
-    try {
-      var r = await fetch('/api/airport-conditions?airportIata=' + encoded);
-      data  = r.ok ? await r.json() : null;
-    } catch(e) {
-      section.style.display = 'none';
-      return;
-    }
-
-    if (data) renderConditions(data.weather, data.faaStatus);
-    else       section.style.display = 'none';
-
-    // Auto-refresh every 3 minutes (aligned with server cache TTL)
-    _conditionsRefreshTimer = setInterval(function() {
-      fetch('/api/airport-conditions?airportIata=' + encoded)
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(d) { if (d) renderConditions(d.weather, d.faaStatus); })
-        .catch(function() {});
-    }, 3 * 60 * 1000);
-  };
-})();
+  _conditionsRefreshTimer = setInterval(function() {
+    fetch('/api/airport-conditions?airportIata=' + encoded)
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) { if (d) _renderDepConditions(iata, d.weather, d.faaStatus); })
+      .catch(function() {});
+  }, 3 * 60 * 1000);
+};
 
 // ════════════════════════════════════════════════════════════════
 // INIT
