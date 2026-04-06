@@ -911,11 +911,34 @@
 
     /* ══ VIEW TOPBAR ══════════════════════════════════════════════ */
     .view-topbar { position:sticky; top:0; z-index:100; background:rgba(8,12,20,0.92); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 20px; }
-    .view-topbar-inner { max-width:980px; margin:0 auto; display:flex; align-items:center; gap:12px; height:64px; }
-    .back-btn { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); padding:8px 14px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all 0.2s; flex-shrink:0; }
+    .view-topbar-inner { max-width:980px; margin:0 auto; display:flex; align-items:center; gap:10px; height:64px; }
+    .back-btn { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); padding:7px 12px; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all 0.2s; flex-shrink:0; }
     .back-btn:hover { color:var(--text); border-color:var(--border-h); }
-    .topbar-logo { height:50px; width:auto; display:block; flex-shrink:0; }
+    .topbar-logo { height:44px; width:auto; display:block; flex-shrink:0; overflow:visible; }
     .topbar-spacer { flex:1; min-width:0; }
+
+    /* ══ DUAL-PANEL LAYOUT (weather + gate zero side by side) ═══ */
+    .dep-dual-panel { margin-bottom: 22px; }
+    .dep-dual-panel.side-by-side {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 860px) { .dep-dual-panel.side-by-side { grid-template-columns: 1fr; } }
+    .dep-dual-panel > #conditionsSection { margin-bottom: 0; }
+    .dep-dual-panel > .gate-zero         { margin-bottom: 0; }
+
+    /* Weather card compact variant inside the dual panel */
+    .dep-dual-panel .home-wx-temp         { font-size: 42px; }
+    .dep-dual-panel .home-wx-top          { padding: 18px 18px 12px; gap: 14px; }
+    .dep-dual-panel .home-wx-icon-wrap    { width: 68px; height: 68px; }
+    .dep-dual-panel .home-wx-icon-svg     { width: 64px; height: 64px; }
+    .dep-dual-panel .home-wx-stats        { grid-template-columns: repeat(2,1fr); padding: 10px 14px 14px; gap: 6px; }
+    .dep-dual-panel .home-wx-stat         { padding: 8px 6px; }
+    .dep-dual-panel .home-wx-stat-val     { font-size: 12px; }
+    .dep-dual-panel .home-wx-rule         { margin: 0 18px; }
+    .dep-dual-panel .home-wx-card         { border-radius: 20px; }
     .topbar-flight-wrap { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 
     /* ══ DEP HEADER ROW ══════════════════════════════════════════ */
@@ -1097,10 +1120,10 @@
   <div class="view-topbar">
     <div class="view-topbar-inner">
       <button class="back-btn" onclick="showView('home')">← Home</button>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" class="topbar-logo" role="img" aria-label="APTSA">
-      <text x="0" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
-      <path transform="translate(188,14) rotate(-10) scale(0.5) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
-    </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234 56" class="topbar-logo" role="img" aria-label="APTSA">
+        <text x="4" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
+        <path transform="translate(210,14) rotate(-10) scale(0.52) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+      </svg>
       <div class="topbar-spacer"></div>
       <select id="airportSelect" onchange="onDepartureAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
       <span class="location-badge" id="locationBadge">📍 <span id="locationLabel"></span></span>
@@ -1130,8 +1153,11 @@
       <span class="live-pill" id="liveIndicator">Live</span>
     </div>
 
-    <!-- Airport Conditions — first panel, weather card style -->
-    <section id="conditionsSection" style="display:none; margin-bottom:22px;">
+    <!-- Dual panel: weather left, Gate Zero right -->
+    <div class="dep-dual-panel" id="depDualPanel">
+
+    <!-- Airport Conditions — weather card -->
+    <section id="conditionsSection" style="display:none;">
       <div class="home-wx-card" id="depWxCard">
         <div class="home-wx-display">
           <div class="home-wx-bg"    id="depWxBg"></div>
@@ -1157,7 +1183,6 @@
           </div>
         </div>
       </div>
-      <!-- FAA ground programs shown below card when active -->
       <div id="depFaaPrograms"></div>
     </section>
 
@@ -1241,6 +1266,9 @@
                 onclick="openLeaveModal()">🕐 View Leave Time →</button>
       </div>
     </section>
+
+    </div><!-- /.dep-dual-panel -->
+
     <!-- TSA Intelligence -->
     <section class="wait-section">
       <div class="section-header">
@@ -1331,10 +1359,10 @@
   <div class="view-topbar">
     <div class="view-topbar-inner">
       <button class="back-btn" onclick="showView('home')">← Home</button>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" class="topbar-logo" role="img" aria-label="APTSA">
-      <text x="0" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
-      <path transform="translate(188,14) rotate(-10) scale(0.5) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
-    </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234 56" class="topbar-logo" role="img" aria-label="APTSA">
+        <text x="4" y="40" font-family="'Exo 2','Arial',sans-serif" font-weight="800" font-size="38" letter-spacing="3" fill="white">APTSA</text>
+        <path transform="translate(210,14) rotate(-10) scale(0.52) translate(-50,-50)" fill="#22d3ee" d="M 95,50 C 93,44 85,44 78,44 L 62,44 L 38,16 L 32,22 L 52,44 L 22,44 L 10,34 L 14,44 L 6,44 C 5,46 5,48 5,50 C 5,52 5,54 6,56 L 14,56 L 10,66 L 22,56 L 52,56 L 32,78 L 38,84 L 62,56 L 78,56 C 85,56 93,56 95,50 Z"/>
+      </svg>
       <div class="topbar-spacer"></div>
       <button class="btn-national" id="nationalModeBtn" onclick="toggleNationalMode()">🌎 US National</button>
       <select id="trackerAirportSelect" onchange="onTrackerAirportChange()" style="min-width:190px;flex-shrink:0;"><!-- populated by JS --></select>
@@ -4726,6 +4754,9 @@ function _renderDepConditions(iata, weather, faaStatus) {
   }
 
   section.style.display = hasContent ? 'block' : 'none';
+  // Enable/disable side-by-side layout
+  var panel = document.getElementById('depDualPanel');
+  if (panel) panel.classList.toggle('side-by-side', hasContent);
 }
 
 window.loadAirportConditions = async function loadAirportConditions(iata) {
